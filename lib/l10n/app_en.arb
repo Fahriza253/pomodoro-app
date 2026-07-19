@@ -1,0 +1,447 @@
+{
+  "@@locale": "en",
+  "appTitle": "Pomodoro",
+  "tryAgain": "Try again",
+  "cancel": "Cancel",
+  "delete": "Delete",
+  "ok": "OK",
+  "save": "Save",
+  "saveUpper": "SAVE",
+  "discard": "Discard",
+  "yes": "Yes",
+  "no": "No",
+  "enabled": "Enabled",
+  "disabled": "Disabled",
+  "navTimer": "Timer",
+  "navTimeline": "Timeline",
+  "navStatistic": "Statistic",
+  "navSettings": "Settings",
+  "databaseNotReadyTitle": "Preparing your data",
+  "databaseNotReadyBody": "The database is not ready yet. Please wait a moment.",
+  "timerTitle": "Timer",
+  "timerLoadStateFailed": "Failed to load timer state",
+  "selectTagFirst": "Select a tag first",
+  "sessionNotActiveOrEnded": "This session is no longer active or has ended",
+  "flexibleReminderEveryMinutes": "Reminder: every {minutes} minutes",
+  "@flexibleReminderEveryMinutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "start": "Start",
+  "skip": "Skip",
+  "resume": "Resume",
+  "pause": "Pause",
+  "stop": "Stop",
+  "stopWithGraceSeconds": "Stop ({seconds}s)",
+  "@stopWithGraceSeconds": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "skipBreakUpper": "SKIP BREAK",
+  "finish": "Finish",
+  "focusCompleteTitle": "Focus complete",
+  "breakCompleteTitle": "Break complete",
+  "timeForBreak": "Time for a break",
+  "readyForNextFocus": "Ready for the next focus session",
+  "startBreakUpper": "START BREAK",
+  "startFocusUpper": "START FOCUS",
+  "skipBreak": "Skip break",
+  "sessionCompleteTitle": "Session complete",
+  "sessionSavedBody": "Session saved. Start again with the same tag, or return home.",
+  "startAgainUpper": "START AGAIN",
+  "doneUpper": "DONE",
+  "activeDuration": "Active: {duration}",
+  "@activeDuration": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "cycleProgress": "Cycle {completed} of {total}",
+  "@cycleProgress": {
+    "placeholders": {
+      "completed": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "continueUpper": "CONTINUE",
+  "loadingTags": "Loading tags…",
+  "loadTagsFailed": "Failed to load tags",
+  "selectTag": "Select tag",
+  "manageTags": "Manage tags",
+  "selectTagTitle": "Select a tag",
+  "recoveryDialogTitle": "Resume previous session?",
+  "recoveryDialogBody": "We found an unfinished session. Would you like to resume it?",
+  "resumeSession": "Resume session",
+  "slideToStopSemantics": "Slide to stop the session",
+  "releaseToStop": "Release to stop",
+  "segmentFocus": "Focus",
+  "segmentShortRest": "Short rest",
+  "segmentLongRest": "Long rest",
+  "segmentFlexible": "Flexible",
+  "segmentSkipped": "Skipped",
+  "segmentRunning": "Running",
+  "segmentIncomplete": "Incomplete",
+  "modePomodoro": "Pomodoro",
+  "modeFlexible": "Flexible",
+  "errorTimerActiveSession": "A session is already active",
+  "errorNoActiveSession": "No active session",
+  "errorTimerInvalidTransition": "This action isn't allowed right now",
+  "errorTimerRecoveryExpired": "The previous session can no longer be recovered",
+  "errorTimerStopNotConfirmed": "Stop wasn't confirmed",
+  "errorSaveFailedTryAgain": "Failed to save, please try again",
+  "errorTagNotFound": "Tag not found",
+  "errorSessionNotActiveOrEnded": "This session is no longer active or has ended",
+  "manageTagsTitle": "Manage tags",
+  "newTagTooltip": "New tag",
+  "loadTagListFailed": "Failed to load tag list",
+  "noTagsYet": "No tags yet",
+  "loadTagFailed": "Failed to load tag",
+  "tagNameLabel": "Tag name",
+  "color": "Color",
+  "newTag": "New tag",
+  "editTag": "Edit tag",
+  "focusDuration": "Focus duration",
+  "shortBreakDuration": "Short break duration",
+  "longBreakDuration": "Long break duration",
+  "focusBeforeLongBreak": "Focus sessions before long break",
+  "totalCycles": "Total cycles",
+  "minutesUnit": "min",
+  "timesUnit": "x",
+  "autoStartBreak": "Auto-start break",
+  "autoStartFocus": "Auto-start focus",
+  "unlimitedDefaultDuration": "Unlimited",
+  "defaultDuration": "Default duration",
+  "reminderEnabled": "Reminder enabled",
+  "reminderInterval": "Reminder interval",
+  "deleteTag": "Delete tag",
+  "deleteTagConfirmTitle": "Delete \"{name}\"?",
+  "@deleteTagConfirmTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteTagConfirmBody": "This tag will be permanently deleted. This action cannot be undone.",
+  "errorTagNameDuplicate": "A tag with this name already exists",
+  "errorTagEditBlockedActive": "Can't edit this tag while its session is active",
+  "errorTagDeleteLast": "Can't delete the last remaining tag",
+  "timelineTitle": "Timeline",
+  "sessionDetailTitle": "Session detail",
+  "filterMonthTooltip": "Filter by month",
+  "noSessionsOnDate": "No sessions on this date",
+  "focusDurationLabel": "Focus duration: {duration}",
+  "@focusDurationLabel": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "sessionTagAndMode": "{tagName} · {mode}",
+  "@sessionTagAndMode": {
+    "placeholders": {
+      "tagName": {
+        "type": "String"
+      },
+      "mode": {
+        "type": "String"
+      }
+    }
+  },
+  "sessionStatusPrefix": "Status: {status}",
+  "@sessionStatusPrefix": {
+    "placeholders": {
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "totalActive": "Total active: {duration}",
+  "@totalActive": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "totalPaused": "Total paused: {duration}",
+  "@totalPaused": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "segments": "Segments",
+  "noSegmentsRecorded": "No segments recorded",
+  "plannedDuration": "Planned: {duration}",
+  "@plannedDuration": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "actualDuration": "Actual: {duration}",
+  "@actualDuration": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "statisticTitle": "Statistic",
+  "loadStatisticFailed": "Failed to load statistic",
+  "tagBreakdown": "Tag breakdown",
+  "tag": "Tag",
+  "allTags": "All tags",
+  "mode": "Mode",
+  "allModes": "All modes",
+  "metricSessions": "Sessions",
+  "metricFocus": "Focus",
+  "metricBreak": "Break",
+  "metricTotal": "Total",
+  "noTagBreakdown": "No tag breakdown available",
+  "sessionCount": "{count} sessions",
+  "@sessionCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "noDataForFilter": "No data for this filter",
+  "noStatisticData": "No statistic data yet",
+  "adjustFiltersHint": "Try adjusting your filters",
+  "startSessionHint": "Start a session to see your statistic here",
+  "periodDaily": "Daily",
+  "periodWeekly": "Weekly",
+  "periodMonthly": "Monthly",
+  "periodYearly": "Yearly",
+  "periodTotal": "Total",
+  "settingsTitle": "Settings",
+  "loadSettingsFailed": "Failed to load settings",
+  "settingsSectionAlert": "Alert",
+  "alertTones": "Alert tones",
+  "settingsSectionFocus": "Focus",
+  "focusMode": "Focus mode",
+  "whitelistApps": "Whitelisted apps",
+  "appCount": "{count} apps",
+  "@appCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsSectionAppearance": "Appearance",
+  "themeAndDisplay": "Theme & display",
+  "themeAodSummary": "{theme} · AOD {status}",
+  "@themeAodSummary": {
+    "placeholders": {
+      "theme": {
+        "type": "String"
+      },
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsSectionTimeLanguage": "Time & language",
+  "timeAndLanguage": "Time & language",
+  "settingsSectionStatistic": "Statistic",
+  "statisticInclusion": "Statistic inclusion",
+  "statisticInclusionSummary": "Failed sessions: {failed}",
+  "@statisticInclusionSummary": {
+    "placeholders": {
+      "failed": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsSectionPlatform": "Platform",
+  "platformAndBattery": "Platform & battery",
+  "platformSubtitle": "Platform-specific behavior and battery settings",
+  "alertTonesSummary": "Focus {focus} · Break {breakTone}",
+  "@alertTonesSummary": {
+    "placeholders": {
+      "focus": {
+        "type": "String"
+      },
+      "breakTone": {
+        "type": "String"
+      }
+    }
+  },
+  "focusLoose": "Loose",
+  "focusStrict": "Strict",
+  "focusWhitelist": "Whitelist",
+  "themeLight": "Light",
+  "themeDark": "Dark",
+  "themeSystem": "System",
+  "themeFollowSystem": "Follow system",
+  "languageIndonesian": "Indonesian",
+  "languageEnglish": "English",
+  "timeFormat12h": "12-hour",
+  "timeFormat24h": "24-hour",
+  "weekStartMonday": "Monday",
+  "weekStartSunday": "Sunday",
+  "language": "Language",
+  "timeFormat": "Time format",
+  "weekStart": "Week starts on",
+  "timeLanguageTitle": "Time & language",
+  "alertTonesTitle": "Alert tones",
+  "focusComplete": "Focus complete",
+  "breakComplete": "Break complete",
+  "focusFailed": "Focus failed",
+  "alertTonePreviewHint": "Tap a tone to preview it",
+  "focusModeTitle": "Focus mode",
+  "focusModeDegradedBanner": "Focus mode is running in a degraded state",
+  "focusLooseSubtitle": "No restrictions, just a gentle reminder to stay focused",
+  "focusStrictSubtitle": "Leaving the app counts as a violation",
+  "focusWhitelistSubtitle": "Only whitelisted apps are allowed during focus",
+  "usageAccessRequired": "Usage access permission is required",
+  "openSettings": "Open settings",
+  "violationThreshold": "Violation threshold",
+  "seconds": "seconds",
+  "secondsCount": "{sec}s",
+  "@secondsCount": {
+    "placeholders": {
+      "sec": {
+        "type": "int"
+      }
+    }
+  },
+  "manageWhitelist": "Manage whitelist",
+  "notAvailableOnDevice": "Not available on this device",
+  "whitelistAppsTitle": "Whitelisted apps",
+  "installedAppsUnavailable": "Installed apps list is unavailable",
+  "selectApp": "Select app",
+  "addApp": "Add app",
+  "whitelistEmpty": "Whitelist is empty",
+  "whitelistOnlyWhenActive": "Whitelist only applies while a focus session is active",
+  "appearanceTitle": "Appearance",
+  "theme": "Theme",
+  "alwaysOnDisplay": "Always-on display (AOD)",
+  "aodEnabledDescription": "Keep the timer visible on screen while focusing",
+  "notSupportedOnDevice": "Not supported on this device",
+  "statisticInclusionTitle": "Statistic inclusion",
+  "trackFailedSessions": "Track failed sessions",
+  "trackFailedSessionsSubtitle": "Include failed sessions and their focus time in your statistic",
+  "platformBatteryTitle": "Platform & battery",
+  "platformLabel": "Platform: {label}",
+  "@platformLabel": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "segmentNotifications": "Segment notifications",
+  "notificationDeepLinkAvailable": "Notifications can open the app directly",
+  "deepLinkUnavailable": "Deep link is unavailable on this device",
+  "flexibleReminders": "Flexible reminders",
+  "platformNotes": "Platform notes",
+  "batteryOptimization": "Battery optimization",
+  "batteryOptimizationBody": "Disable battery optimization for this app to keep the timer running reliably in the background",
+  "openBatterySettings": "Open battery settings",
+  "errorFocusPermissionDenied": "Focus permission was denied",
+  "errorSaveSettingsFailed": "Failed to save settings",
+  "errorStorageWriteFailed": "Failed to write to storage",
+  "sessionStatusCompleted": "Completed",
+  "sessionStatusAbandoned": "Abandoned",
+  "sessionStatusFailed": "Failed",
+  "sessionStatusManual": "Manual",
+  "sessionStatusActive": "Active",
+  "durationZero": "0m",
+  "durationHoursMinutes": "{hours}h {minutes}m",
+  "@durationHoursMinutes": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "durationMinutesOnly": "{minutes}m",
+  "@durationMinutesOnly": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "todayDate": "Today, {date}",
+  "@todayDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "yesterdayDate": "Yesterday, {date}",
+  "@yesterdayDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "deletedTag": "Deleted tag",
+  "languageUnsupported": "Language is not supported.",
+  "weekStartInvalid": "Week start day is invalid.",
+  "violationThresholdOutOfRange": "Violation threshold must be between {min}–{max} seconds.",
+  "@violationThresholdOutOfRange": {
+    "placeholders": {
+      "min": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "alertToneFocusSuccessInvalid": "Focus-complete tone is invalid.",
+  "alertToneBreakOverInvalid": "Break-complete tone is invalid.",
+  "alertToneFocusFailureInvalid": "Focus-failure tone is invalid.",
+  "whitelistEntryEmpty": "Whitelist entry must not be empty.",
+  "notificationFocusing": "Focusing",
+  "notificationResting": "Resting",
+  "notificationExit": "Tap to return to the session",
+  "notificationSessionStoppedTitle": "Session stopped",
+  "notificationSessionStoppedBody": "Your session has been stopped",
+  "notificationFocusCompleteTitle": "Focus complete",
+  "notificationBreakCompleteTitle": "Break complete",
+  "notificationTimeForBreak": "Time for a break",
+  "notificationTimeForFocus": "Time to focus",
+  "notificationFocusFailedTitle": "Focus session failed",
+  "notificationFocusViolationBody": "You left the app during focus mode",
+  "notificationFocusReminderTitle": "Focus reminder",
+  "notificationFocusReminderBody": "Stay focused, your session is still running",
+  "capNotificationInitFailed": "Notification service failed to start. Alerts are unavailable; try restarting the app.",
+  "capAndroidNeedsNotificationPermission": "Segment notifications require notification permission.",
+  "capIosStrictBackgroundOnly": "iOS: other-app detection is unavailable — Strict only applies when this app is in the background.",
+  "capIosBackgroundNotificationsBestEffort": "iOS background notifications are best-effort.",
+  "capDesktopFocusLimited": "Desktop: Strict/Whitelist focus is limited.",
+  "capScheduledNotificationsUnreliable": "Scheduled notifications may be unreliable when the app is closed.",
+  "capWebFocusDowngradeToLoose": "Web: Strict/Whitelist downgrade to Loose.",
+  "capWebNotificationsNeedActiveTab": "Web notifications require an active tab or browser permission.",
+  "capWebAodWakeLock": "Web AOD uses Wake Lock — the screen must stay visible.",
+  "capFocusModesDegradedToLoose": "Strict/Whitelist is not fully available — sessions run as Loose.",
+  "capAodUnsupported": "Always-on display is not supported on this platform."
+}
