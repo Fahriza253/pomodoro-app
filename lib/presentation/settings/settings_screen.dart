@@ -45,7 +45,7 @@ class SettingsScreen extends ConsumerWidget {
           children: [
             _SectionHeader(title: l10n.settingsSectionAlert.toUpperCase()),
             _SettingsTile(
-              title: l10n.alertTones,
+              title: l10n.alertTonesTitle,
               subtitle: _alertTonesSummary(settings, l10n),
               onTap: () => context.push('/settings/alert'),
             ),
@@ -181,8 +181,10 @@ String _weekStartLabel(int day, AppLocalizations l10n) => switch (day) {
   _ => '$day',
 };
 
-String _alertTonesSummary(AppSettings settings, AppLocalizations l10n) =>
-    l10n.alertTonesSummary(
-      AlertToneCatalog.label(settings.alertToneFocusSuccess),
-      AlertToneCatalog.label(settings.alertToneBreakOver),
-    );
+String _alertTonesSummary(AppSettings settings, AppLocalizations l10n) {
+  final mute = settings.alertSoundMuted ? l10n.muted : l10n.unmuted;
+  return '${l10n.alertTonesSummary(
+    AlertToneCatalog.label(settings.alertToneFocusSuccess),
+    AlertToneCatalog.label(settings.alertToneBreakOver),
+  )} · ${l10n.alertSoundMute}: $mute';
+}

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:pomodoro_app/application/timer/alert_modality.dart';
 import 'package:pomodoro_app/application/timer/config_snapshot_factory.dart';
 import 'package:pomodoro_app/application/timer/notification_strings.dart';
 import 'package:pomodoro_app/application/timer/persist_reason.dart';
@@ -27,7 +28,9 @@ import 'package:pomodoro_app/domain/timer/timer_transition_error.dart';
 import 'package:pomodoro_app/platform/aod/aod_adapter.dart';
 import 'package:pomodoro_app/platform/audio/alert_sound_adapter.dart';
 import 'package:pomodoro_app/platform/clock/clock_adapter.dart';
+import 'package:pomodoro_app/platform/flash/flash_adapter.dart';
 import 'package:pomodoro_app/platform/focus/focus_adapter.dart';
+import 'package:pomodoro_app/platform/haptic/haptic_adapter.dart';
 import 'package:pomodoro_app/platform/notifications/notification_adapter.dart';
 import 'package:pomodoro_app/platform/notifications/notification_deep_link.dart';
 import 'package:pomodoro_app/platform/notifications/running_timer_notification.dart';
@@ -42,6 +45,8 @@ class TimerCoordinator {
     required this._settingsRepository,
     required this._notificationAdapter,
     required this._alertSoundAdapter,
+    required this._hapticAdapter,
+    required this._flashAdapter,
     required this._focusAdapter,
     required this._aodAdapter,
     required this._clock,
@@ -68,6 +73,8 @@ class TimerCoordinator {
   final SettingsRepository _settingsRepository;
   final NotificationAdapter _notificationAdapter;
   final AlertSoundAdapter _alertSoundAdapter;
+  final HapticAdapter _hapticAdapter;
+  final FlashAdapter _flashAdapter;
   final FocusAdapter _focusAdapter;
   final AODAdapter _aodAdapter;
   final ClockAdapter _clock;
@@ -431,21 +438,7 @@ class TimerCoordinator {
     // Re-schedule before Dart suspends — OS must deliver segment-end on iOS
     // while the user is in another app (BR-TIMER-020).
     await _scheduleSegmentNotification();
-    final sessionId = _sessionId;
-    if (sessionId == null) return;
-    final copy = await _notificationCopy();
-    final content = buildRunningTimerContent(
-      state: _engine.currentState,
-      sessionId: sessionId,
-      nowUtc: _clock.nowUtc(),
-      focusingTitle: copy.focusing,
-      restingTitle: copy.resting,
-    );
-    if (content == null) {
-      await _notificationAdapter.cancel(kRunningTimerNotificationId);
-    } else {
-      await _notificationAdapter.showRunningTimer(content);
-    }
+    await _syncRunningTimerNotification();
   }
 
   Future<void> onLifecycleForeground() async {
@@ -551,8 +544,35 @@ class TimerCoordinator {
     }
 
     await _syncPlatformAdapters();
+    // Mid-background pause/resume/segment: refresh tray chronometer / Live Activity
+    // while the process is still awake (no periodic isolate ticks).
+    if (!_isInForeground) {
+      await _syncRunningTimerNotification();
+    }
     _emitViewState();
     _maybeFireFlexibleReminder(after);
+  }
+
+  /// Show or hide the ongoing running-timer OS surface (notification / Live Activity).
+  Future<void> _syncRunningTimerNotification() async {
+    final sessionId = _sessionId;
+    if (sessionId == null) {
+      await _notificationAdapter.cancel(kRunningTimerNotificationId);
+      return;
+    }
+    final copy = await _notificationCopy();
+    final content = buildRunningTimerContent(
+      state: _engine.currentState,
+      sessionId: sessionId,
+      nowUtc: _clock.nowUtc(),
+      focusingTitle: copy.focusing,
+      restingTitle: copy.resting,
+    );
+    if (content == null) {
+      await _notificationAdapter.cancel(kRunningTimerNotificationId);
+    } else {
+      await _notificationAdapter.showRunningTimer(content);
+    }
   }
 
   Future<void> _maybePlaySegmentAlert(
@@ -597,9 +617,9 @@ class TimerCoordinator {
       return;
     }
 
-    // Foreground: in-app tone only. OS showAlert would overlap the same sound.
+    // Foreground: in-app modalities only. OS showAlert would overlap sound.
     if (_isInForeground) {
-      await _alertSoundAdapter.play(soundToneId);
+      await _applyAlertModalities(settings, soundToneId: soundToneId);
       return;
     }
 
@@ -610,6 +630,7 @@ class TimerCoordinator {
       after: after,
       strings: copy,
     );
+    final plan = _planFor(settings);
     await _notificationAdapter.showAlert(
       title: endCopy.title,
       body: endCopy.body,
@@ -617,7 +638,36 @@ class TimerCoordinator {
       soundToneId: soundToneId,
       notificationId: _immediateSegmentEndNotificationId,
       deepLinkSource: NotificationDeepLink.sourceSegmentEnd,
+      playSound: plan.osNotificationPlaySound,
     );
+    await _applyAlertModalities(settings, soundToneId: null);
+  }
+
+  AlertModalityPlan _planFor(AppSettings settings) {
+    return planAlertModalities(
+      foreground: _isInForeground,
+      soundMuted: settings.alertSoundMuted,
+      hapticEnabled: settings.alertHapticEnabled,
+      flashEnabled: settings.alertFlashEnabled,
+      flashCapable: _flashAdapter.capabilities().supported,
+    );
+  }
+
+  /// Applies haptic/flash and optional in-app tone per [planAlertModalities].
+  Future<void> _applyAlertModalities(
+    AppSettings settings, {
+    required String? soundToneId,
+  }) async {
+    final plan = _planFor(settings);
+    if (plan.playInAppSound && soundToneId != null) {
+      await _alertSoundAdapter.play(soundToneId);
+    }
+    if (plan.triggerHaptic) {
+      await _hapticAdapter.pulse();
+    }
+    if (plan.triggerFlash) {
+      await _flashAdapter.pulse();
+    }
   }
 
   Future<void> _cancelSegmentEndNotifications() async {
@@ -900,20 +950,25 @@ class TimerCoordinator {
   }) async {
     final settings = await _settingsRepository.get();
     final toneId = settings.alertToneFocusFailure;
+    final plan = _planFor(settings);
     final sessionId = _sessionId;
     if (sessionId != null) {
       await _notificationAdapter.cancel(sessionId.hashCode);
-      if (osNotification) {
+      if (osNotification && !_isInForeground) {
         await _notificationAdapter.showAlert(
           title: title,
           body: body,
           sessionId: sessionId,
           soundToneId: toneId,
           notificationId: sessionId.hashCode ^ 0x4641494c, // 'FAIL'
+          playSound: plan.osNotificationPlaySound,
         );
       }
     }
-    await _alertSoundAdapter.play(toneId);
+    await _applyAlertModalities(
+      settings,
+      soundToneId: _isInForeground || !osNotification ? toneId : null,
+    );
   }
 
   Future<void> _syncPlatformAdapters() async {
@@ -1006,6 +1061,7 @@ class TimerCoordinator {
       notificationId: _scheduledSegmentEndNotificationId,
       sessionId: _sessionId!,
       soundToneId: soundToneId,
+      playSound: _planFor(settings).osNotificationPlaySound,
     );
   }
 
@@ -1025,12 +1081,20 @@ class TimerCoordinator {
     )) {
       _engine.acknowledgeFlexibleReminder(_clock.nowUtc());
       unawaited(() async {
-        final copy = await _notificationCopy();
-        await _notificationAdapter.showReminder(
-          title: copy.focusReminderTitle,
-          body: copy.focusReminderBody,
-          sessionId: _sessionId!,
-        );
+        final settings = await _settingsRepository.get();
+        final copy = NotificationStrings.forLanguage(settings.language);
+        final plan = _planFor(settings);
+        if (_isInForeground) {
+          await _applyAlertModalities(settings, soundToneId: null);
+        } else {
+          await _notificationAdapter.showReminder(
+            title: copy.focusReminderTitle,
+            body: copy.focusReminderBody,
+            sessionId: _sessionId!,
+            playSound: plan.osNotificationPlaySound,
+          );
+          await _applyAlertModalities(settings, soundToneId: null);
+        }
       }());
     }
   }

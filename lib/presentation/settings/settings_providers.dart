@@ -11,6 +11,7 @@ final settingsUseCasesProvider = Provider<SettingsUseCases>((ref) {
     focusAdapter: ref.watch(focusAdapterProvider),
     notificationAdapter: ref.watch(notificationAdapterProvider),
     aodAdapter: ref.watch(aodAdapterProvider),
+    flashAdapter: ref.watch(flashAdapterProvider),
     onStatisticInvalidation: () {
       ref.read(statisticRefreshTokenProvider.notifier).state++;
     },
@@ -29,4 +30,8 @@ final focusCapabilitiesProvider = Provider((ref) {
 
 final aodCapabilitiesProvider = Provider((ref) {
   return ref.watch(settingsUseCasesProvider).getAodCapabilities();
+});
+
+final flashCapabilitiesProvider = Provider((ref) {
+  return ref.watch(settingsUseCasesProvider).getFlashCapabilities();
 });

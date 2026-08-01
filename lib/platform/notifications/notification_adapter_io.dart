@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
+import 'package:live_activities/live_activities.dart';
 import 'package:pomodoro_app/domain/settings/alert_tone_catalog.dart';
 import 'package:pomodoro_app/platform/notifications/notification_adapter.dart';
 import 'package:pomodoro_app/platform/notifications/notification_adapter_stub.dart';
@@ -26,16 +27,21 @@ class LocalNotificationAdapter implements NotificationAdapter {
 
   static const _channelPrefix = 'timer_alerts';
   static const _reminderChannelId = 'timer_reminders';
+  static const _reminderSilentChannelId = 'timer_reminders_silent';
+  static const _silentAlertChannelId = 'timer_alerts_silent';
   static const _runningChannelId = 'timer_running';
   // White-alpha silhouette — full-color mipmaps look like a blank placeholder.
   static const _androidIcon = '@drawable/ic_stat_pomodoro';
 
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
+  final LiveActivities _liveActivities = LiveActivities();
   bool _initialized = false;
   bool _initFailed = false;
   bool _permissionGranted = false;
   bool _permissionRequested = false;
+  bool _liveActivitiesInited = false;
+  bool _iosLiveActivityAvailable = false;
   final Set<String> _createdChannels = {};
   void Function(Uri uri)? _deepLinkHandler;
   Uri? _pendingLaunchUri;
@@ -98,6 +104,20 @@ class LocalNotificationAdapter implements NotificationAdapter {
         soundToneId: null,
       );
       await _ensureAndroidChannel(
+        channelId: _reminderSilentChannelId,
+        channelName: 'Timer Reminders (Silent)',
+        description: 'Pengingat Flexible tanpa suara',
+        soundToneId: null,
+        playSound: false,
+      );
+      await _ensureAndroidChannel(
+        channelId: _silentAlertChannelId,
+        channelName: 'Timer Alerts (Silent)',
+        description: 'Alert segment tanpa suara',
+        soundToneId: null,
+        playSound: false,
+      );
+      await _ensureAndroidChannel(
         channelId: _runningChannelId,
         channelName: 'Timer Running',
         description: 'Timer sesi saat app di background',
@@ -131,6 +151,28 @@ class LocalNotificationAdapter implements NotificationAdapter {
     }
 
     _initialized = true;
+    await _probeIosLiveActivities();
+  }
+
+  Future<void> _probeIosLiveActivities() async {
+    if (!Platform.isIOS) return;
+    try {
+      if (!_liveActivitiesInited) {
+        await _liveActivities.init(
+          appGroupId: kPomodoroAppGroupId,
+          // Android RemoteViews unused — do not request permission here.
+          requestAndroidNotificationPermission: false,
+        );
+        _liveActivitiesInited = true;
+      }
+      final supported = await _liveActivities.areActivitiesSupported();
+      final enabled = supported
+          ? await _liveActivities.areActivitiesEnabled()
+          : false;
+      _iosLiveActivityAvailable = supported && enabled;
+    } on Object {
+      _iosLiveActivityAvailable = false;
+    }
   }
 
   @override
@@ -209,6 +251,8 @@ class LocalNotificationAdapter implements NotificationAdapter {
       deepLinkOnTap: true,
       customSound: true,
       backgroundDelivery: _permissionGranted,
+      // Android chronometer always; iOS Live Activity when ActivityKit allows.
+      liveTimerStatus: Platform.isAndroid || _iosLiveActivityAvailable,
     );
   }
 
@@ -220,6 +264,7 @@ class LocalNotificationAdapter implements NotificationAdapter {
     required int notificationId,
     required String sessionId,
     required String soundToneId,
+    bool playSound = true,
   }) async {
     await _ensureReady();
     final scheduled = tz.TZDateTime.from(
@@ -233,7 +278,7 @@ class LocalNotificationAdapter implements NotificationAdapter {
       title,
       body,
       scheduled,
-      await _notificationDetails(soundToneId),
+      await _notificationDetails(soundToneId, playSound: playSound),
       androidScheduleMode: await _androidScheduleMode(),
       payload: NotificationDeepLink.timerSessionUri(
         sessionId,
@@ -265,6 +310,7 @@ class LocalNotificationAdapter implements NotificationAdapter {
     required String soundToneId,
     int? notificationId,
     String? deepLinkSource,
+    bool playSound = true,
   }) async {
     await _ensureReady();
     final id = (notificationId ?? sessionId.hashCode ^ soundToneId.hashCode)
@@ -273,7 +319,7 @@ class LocalNotificationAdapter implements NotificationAdapter {
       id,
       title,
       body,
-      await _notificationDetails(soundToneId),
+      await _notificationDetails(soundToneId, playSound: playSound),
       payload: NotificationDeepLink.timerSessionUri(
         sessionId,
         source: deepLinkSource,
@@ -286,27 +332,33 @@ class LocalNotificationAdapter implements NotificationAdapter {
     required String title,
     required String body,
     required String sessionId,
+    bool playSound = true,
   }) async {
     await _ensureReady();
+    final channelId = playSound
+        ? _reminderChannelId
+        : _reminderSilentChannelId;
     await _plugin.show(
       sessionId.hashCode.abs(),
       title,
       body,
-      const NotificationDetails(
+      NotificationDetails(
         android: AndroidNotificationDetails(
-          _reminderChannelId,
-          'Timer Reminders',
-          channelDescription: 'Pengingat sesi Flexible',
+          channelId,
+          playSound ? 'Timer Reminders' : 'Timer Reminders (Silent)',
+          channelDescription: playSound
+              ? 'Pengingat sesi Flexible'
+              : 'Pengingat Flexible tanpa suara',
           importance: Importance.high,
           priority: Priority.high,
           visibility: NotificationVisibility.private,
           category: AndroidNotificationCategory.reminder,
           icon: _androidIcon,
-          playSound: true,
+          playSound: playSound,
         ),
         iOS: DarwinNotificationDetails(
           presentAlert: true,
-          presentSound: true,
+          presentSound: playSound,
           presentBanner: true,
           presentList: true,
         ),
@@ -318,13 +370,28 @@ class LocalNotificationAdapter implements NotificationAdapter {
   @override
   Future<void> showRunningTimer(RunningTimerContent content) async {
     await _ensureReady();
+
+    if (Platform.isIOS) {
+      if (!_liveActivitiesInited) {
+        await _probeIosLiveActivities();
+      }
+      if (_iosLiveActivityAvailable) {
+        await _showIosLiveActivity(content);
+        // Avoid duplicate snapshot tray when Live Activity is active.
+        await _plugin.cancel(kRunningTimerNotificationId.abs());
+        return;
+      }
+    }
+
     final anchor = content.chronometerAnchorUtc;
     final useChronometer = Platform.isAndroid && anchor != null;
+    // Chronometer already shows live time in the Android header — omit frozen body MM:SS.
+    final body = useChronometer ? null : content.timerLabel;
 
     await _plugin.show(
       kRunningTimerNotificationId,
       content.title,
-      content.timerLabel,
+      body,
       NotificationDetails(
         android: AndroidNotificationDetails(
           _runningChannelId,
@@ -365,15 +432,47 @@ class LocalNotificationAdapter implements NotificationAdapter {
     );
   }
 
+  Future<void> _showIosLiveActivity(RunningTimerContent content) async {
+    final anchor = content.chronometerAnchorUtc;
+    await _liveActivities.createOrUpdateActivity(
+      kRunningTimerLiveActivityId,
+      {
+        'title': content.title,
+        'timerLabel': content.timerLabel,
+        'sessionId': content.sessionId,
+        // Ints — UserDefaults.bool is unreliable for plugin-stored maps.
+        'countDown': content.countDown ? 1 : 0,
+        'paused': anchor == null ? 1 : 0,
+        'anchorUtcMs': anchor?.millisecondsSinceEpoch ?? 0,
+      },
+      removeWhenAppIsKilled: false,
+      // Local-only — no push-to-update capability required.
+      iOSEnableRemoteUpdates: false,
+    );
+  }
+
+  Future<void> _endIosLiveActivity() async {
+    if (!Platform.isIOS || !_liveActivitiesInited) return;
+    try {
+      await _liveActivities.endActivity(kRunningTimerLiveActivityId);
+    } on Object {
+      // Best-effort: activity may already have ended.
+    }
+  }
+
   @override
   Future<void> cancel(int notificationId) async {
     if (!_initialized) return;
+    if (notificationId.abs() == kRunningTimerNotificationId.abs()) {
+      await _endIosLiveActivity();
+    }
     await _plugin.cancel(notificationId.abs());
   }
 
   @override
   Future<void> cancelAll() async {
     if (!_initialized) return;
+    await _endIosLiveActivity();
     await _plugin.cancelAll();
   }
 
@@ -421,7 +520,41 @@ class LocalNotificationAdapter implements NotificationAdapter {
     _createdChannels.add(channelId);
   }
 
-  Future<NotificationDetails> _notificationDetails(String soundToneId) async {
+  Future<NotificationDetails> _notificationDetails(
+    String soundToneId, {
+    bool playSound = true,
+  }) async {
+    if (!playSound) {
+      await _ensureAndroidChannel(
+        channelId: _silentAlertChannelId,
+        channelName: 'Timer Alerts (Silent)',
+        description: 'Alert segment tanpa suara',
+        soundToneId: null,
+        playSound: false,
+      );
+      return const NotificationDetails(
+        android: AndroidNotificationDetails(
+          _silentAlertChannelId,
+          'Timer Alerts (Silent)',
+          channelDescription: 'Alert segment tanpa suara',
+          importance: Importance.high,
+          priority: Priority.high,
+          visibility: NotificationVisibility.private,
+          category: AndroidNotificationCategory.alarm,
+          icon: _androidIcon,
+          playSound: false,
+          enableVibration: false,
+        ),
+        iOS: DarwinNotificationDetails(
+          presentAlert: true,
+          presentSound: false,
+          presentBanner: true,
+          presentList: true,
+          interruptionLevel: InterruptionLevel.timeSensitive,
+        ),
+      );
+    }
+
     final channelId = _channelIdForTone(soundToneId);
     await _ensureAndroidChannel(
       channelId: channelId,

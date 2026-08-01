@@ -9,8 +9,14 @@ import 'package:pomodoro_app/platform/audio/alert_sound_adapter.dart';
 import 'package:pomodoro_app/platform/audio/alert_sound_adapter_stub.dart'
     if (dart.library.io) 'package:pomodoro_app/platform/audio/alert_sound_adapter_io.dart';
 import 'package:pomodoro_app/platform/clock/clock_adapter.dart';
+import 'package:pomodoro_app/platform/flash/flash_adapter.dart';
+import 'package:pomodoro_app/platform/flash/flash_adapter_stub.dart'
+    if (dart.library.io) 'package:pomodoro_app/platform/flash/flash_adapter_io.dart';
 import 'package:pomodoro_app/platform/focus/focus_adapter.dart';
 import 'package:pomodoro_app/platform/focus/focus_adapter_io.dart';
+import 'package:pomodoro_app/platform/haptic/haptic_adapter.dart';
+import 'package:pomodoro_app/platform/haptic/haptic_adapter_stub.dart'
+    if (dart.library.io) 'package:pomodoro_app/platform/haptic/haptic_adapter_io.dart';
 import 'package:pomodoro_app/platform/notifications/notification_adapter.dart';
 import 'package:pomodoro_app/platform/notifications/notification_adapter_io.dart';
 
@@ -36,6 +42,14 @@ final alertSoundAdapterProvider = Provider<AlertSoundAdapter>((ref) {
   return adapter;
 });
 
+final hapticAdapterProvider = Provider<HapticAdapter>(
+  (ref) => createHapticAdapter(),
+);
+
+final flashAdapterProvider = Provider<FlashAdapter>(
+  (ref) => createFlashAdapter(),
+);
+
 final sessionRecoveryServiceProvider = Provider<SessionRecoveryService>((ref) {
   return SessionRecoveryService(
     sessionRepository: ref.watch(sessionRepositoryProvider),
@@ -51,6 +65,8 @@ final timerCoordinatorProvider = Provider<TimerCoordinator>((ref) {
     settingsRepository: ref.watch(settingsRepositoryProvider),
     notificationAdapter: ref.watch(notificationAdapterProvider),
     alertSoundAdapter: ref.watch(alertSoundAdapterProvider),
+    hapticAdapter: ref.watch(hapticAdapterProvider),
+    flashAdapter: ref.watch(flashAdapterProvider),
     focusAdapter: ref.watch(focusAdapterProvider),
     aodAdapter: ref.watch(aodAdapterProvider),
     clock: ref.watch(clockAdapterProvider),

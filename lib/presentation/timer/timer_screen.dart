@@ -8,6 +8,7 @@ import 'package:pomodoro_app/application/timer/segment_end_copy.dart';
 import 'package:pomodoro_app/application/timer/timer_view_state.dart';
 import 'package:pomodoro_app/domain/common/enums.dart';
 import 'package:pomodoro_app/presentation/l10n/l10n_extensions.dart';
+import 'package:pomodoro_app/presentation/settings/alert_controls_section.dart';
 import 'package:pomodoro_app/presentation/settings/settings_providers.dart';
 import 'package:pomodoro_app/presentation/shared/color_helpers.dart';
 import 'package:pomodoro_app/presentation/tag/tag_providers.dart';
@@ -86,8 +87,14 @@ class _TimerScreenState extends ConsumerState<TimerScreen> {
         title: Text(l10n.timerTitle),
         actions: [
           if (chromeAsync.valueOrNull?.phase == EnginePhase.running)
+            IconButton(
+              tooltip: l10n.alertControlsSheetTitle,
+              icon: const Icon(Icons.notifications_active_outlined),
+              onPressed: () => showAlertControlsSheet(context),
+            ),
+          if (chromeAsync.valueOrNull?.phase == EnginePhase.running)
             Padding(
-              padding: const EdgeInsets.only(right: 16),
+              padding: const EdgeInsets.only(right: 8),
               child: Center(
                 child: Icon(
                   Icons.brightness_high_outlined,

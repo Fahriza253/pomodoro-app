@@ -5,6 +5,7 @@ import 'package:pomodoro_app/domain/common/enums.dart';
 import 'package:pomodoro_app/domain/common/result.dart';
 import 'package:pomodoro_app/domain/settings/app_settings.dart';
 import 'package:pomodoro_app/platform/aod/aod_adapter_stub.dart';
+import 'package:pomodoro_app/platform/flash/flash_adapter_stub.dart';
 import 'package:pomodoro_app/platform/focus/focus_adapter_stub.dart';
 import 'package:pomodoro_app/platform/notifications/notification_adapter_stub.dart';
 
@@ -26,6 +27,7 @@ void main() {
         focusAdapter: StubFocusAdapter(),
         notificationAdapter: StubNotificationAdapter(),
         aodAdapter: const StubAODAdapter(),
+        flashAdapter: const StubFlashAdapter(),
         onStatisticInvalidation: () => invalidationCount++,
       );
     });
@@ -42,6 +44,32 @@ void main() {
       );
       expect(result.isOk, isTrue);
       expect(result.value!.theme, AppTheme.dark);
+    });
+
+    test('updateSettings persists Alert controls', () async {
+      final result = await useCases.updateSettings(
+        const AppSettingsPatch(
+          alertHapticEnabled: false,
+          alertSoundMuted: true,
+          alertFlashEnabled: true,
+        ),
+      );
+      expect(result.isOk, isTrue);
+      expect(result.value!.alertHapticEnabled, isFalse);
+      expect(result.value!.alertSoundMuted, isTrue);
+      expect(result.value!.alertFlashEnabled, isTrue);
+
+      final loaded = await useCases.getSettings();
+      expect(loaded.alertHapticEnabled, isFalse);
+      expect(loaded.alertSoundMuted, isTrue);
+      expect(loaded.alertFlashEnabled, isTrue);
+    });
+
+    test('getSettings returns Alert control defaults', () async {
+      final settings = await useCases.getSettings();
+      expect(settings.alertHapticEnabled, isTrue);
+      expect(settings.alertSoundMuted, isFalse);
+      expect(settings.alertFlashEnabled, isFalse);
     });
 
     test('invalid patch returns SETTINGS_THRESHOLD_OUT_OF_RANGE', () async {

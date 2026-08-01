@@ -6,6 +6,9 @@ class AppSettings {
     required this.alertToneFocusSuccess,
     required this.alertToneBreakOver,
     required this.alertToneFocusFailure,
+    required this.alertHapticEnabled,
+    required this.alertSoundMuted,
+    required this.alertFlashEnabled,
     required this.focusMode,
     required this.whitelist,
     required this.focusViolationThresholdSec,
@@ -22,6 +25,9 @@ class AppSettings {
   final String alertToneFocusSuccess;
   final String alertToneBreakOver;
   final String alertToneFocusFailure;
+  final bool alertHapticEnabled;
+  final bool alertSoundMuted;
+  final bool alertFlashEnabled;
   final FocusMode focusMode;
   final List<String> whitelist;
   final int focusViolationThresholdSec;
@@ -39,6 +45,9 @@ class AppSettingsPatch {
     this.alertToneFocusSuccess,
     this.alertToneBreakOver,
     this.alertToneFocusFailure,
+    this.alertHapticEnabled,
+    this.alertSoundMuted,
+    this.alertFlashEnabled,
     this.focusMode,
     this.whitelist,
     this.focusViolationThresholdSec,
@@ -53,6 +62,9 @@ class AppSettingsPatch {
   final String? alertToneFocusSuccess;
   final String? alertToneBreakOver;
   final String? alertToneFocusFailure;
+  final bool? alertHapticEnabled;
+  final bool? alertSoundMuted;
+  final bool? alertFlashEnabled;
   final FocusMode? focusMode;
   final List<String>? whitelist;
   final int? focusViolationThresholdSec;

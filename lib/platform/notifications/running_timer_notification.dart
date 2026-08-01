@@ -4,6 +4,12 @@ import 'package:pomodoro_app/domain/timer/models/timer_engine_state.dart';
 /// Stable id for the ongoing running-timer notification (not segment-end).
 const int kRunningTimerNotificationId = 0x52554E54; // 'RUNT'
 
+/// iOS Live Activity id (ActivityKit) for the running timer.
+const String kRunningTimerLiveActivityId = 'running_timer';
+
+/// App Group shared by Runner + PomodoroTimerWidget extension.
+const String kPomodoroAppGroupId = 'group.com.dpzstudio.pomodoroapp';
+
 /// iOS category id registered for the Exit action.
 const String kRunningTimerCategoryId = 'running_timer';
 

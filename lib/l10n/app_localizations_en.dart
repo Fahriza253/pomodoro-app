@@ -569,7 +569,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get timeLanguageTitle => 'Time & language';
 
   @override
-  String get alertTonesTitle => 'Alert tones';
+  String get alertTonesTitle => 'Alert';
 
   @override
   String get focusComplete => 'Focus complete';
@@ -582,6 +582,34 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get alertTonePreviewHint => 'Tap a tone to preview it';
+
+  @override
+  String get alertControlsSection => 'Alert controls';
+
+  @override
+  String get alertControlsHint =>
+      'Haptic, sound, and flash for focus, breaks, failure & reminders';
+
+  @override
+  String get alertHaptic => 'Haptic';
+
+  @override
+  String get alertSoundMute => 'Mute sound';
+
+  @override
+  String get alertFlash => 'Flash';
+
+  @override
+  String get alertFlashUnsupported => 'Flash is not supported on this device';
+
+  @override
+  String get alertControlsSheetTitle => 'Alert controls';
+
+  @override
+  String get muted => 'Muted';
+
+  @override
+  String get unmuted => 'On';
 
   @override
   String get focusModeTitle => 'Focus mode';

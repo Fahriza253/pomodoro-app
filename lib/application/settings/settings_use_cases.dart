@@ -6,6 +6,7 @@ import 'package:pomodoro_app/domain/common/result.dart';
 import 'package:pomodoro_app/domain/settings/app_settings.dart';
 import 'package:pomodoro_app/domain/settings/settings_validator.dart';
 import 'package:pomodoro_app/platform/aod/aod_adapter.dart';
+import 'package:pomodoro_app/platform/flash/flash_adapter.dart';
 import 'package:pomodoro_app/platform/focus/focus_adapter.dart';
 import 'package:pomodoro_app/platform/notifications/notification_adapter.dart';
 
@@ -16,6 +17,7 @@ class SettingsUseCases {
     required this._focusAdapter,
     required this._notificationAdapter,
     required this._aodAdapter,
+    required this._flashAdapter,
     required this._onStatisticInvalidation,
     SettingsValidator? validator,
   }) : _validator = validator ?? const SettingsValidator();
@@ -24,6 +26,7 @@ class SettingsUseCases {
   final FocusAdapter _focusAdapter;
   final NotificationAdapter _notificationAdapter;
   final AODAdapter _aodAdapter;
+  final FlashAdapter _flashAdapter;
   final void Function() _onStatisticInvalidation;
   final SettingsValidator _validator;
 
@@ -39,6 +42,8 @@ class SettingsUseCases {
       _notificationAdapter.capabilities();
 
   AODCapabilities getAodCapabilities() => _aodAdapter.capabilities();
+
+  FlashCapabilities getFlashCapabilities() => _flashAdapter.capabilities();
 
   Future<AppResult<AppSettings>> updateSettings(AppSettingsPatch patch) async {
     try {

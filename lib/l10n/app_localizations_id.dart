@@ -571,7 +571,7 @@ class AppLocalizationsId extends AppLocalizations {
   String get timeLanguageTitle => 'Waktu & bahasa';
 
   @override
-  String get alertTonesTitle => 'Nada notifikasi';
+  String get alertTonesTitle => 'Alert';
 
   @override
   String get focusComplete => 'Focus selesai';
@@ -584,6 +584,34 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get alertTonePreviewHint => 'Ketuk nada untuk mendengarkan pratinjau';
+
+  @override
+  String get alertControlsSection => 'Kontrol alert';
+
+  @override
+  String get alertControlsHint =>
+      'Haptic, suara, dan flash untuk fokus, istirahat, gagal & pengingat';
+
+  @override
+  String get alertHaptic => 'Haptic';
+
+  @override
+  String get alertSoundMute => 'Bisukan suara';
+
+  @override
+  String get alertFlash => 'Flash';
+
+  @override
+  String get alertFlashUnsupported => 'Flash tidak didukung di perangkat ini';
+
+  @override
+  String get alertControlsSheetTitle => 'Kontrol alert';
+
+  @override
+  String get muted => 'Bisu';
+
+  @override
+  String get unmuted => 'Aktif';
 
   @override
   String get focusModeTitle => 'Mode focus';

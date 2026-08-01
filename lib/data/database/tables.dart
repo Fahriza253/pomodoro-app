@@ -117,6 +117,9 @@ class AppSettingsTable extends Table {
       text().withDefault(const Constant('break_coin'))();
   TextColumn get alertToneFocusFailure =>
       text().withDefault(const Constant('failure_wrong'))();
+  IntColumn get alertHapticEnabled => integer().withDefault(const Constant(1))();
+  IntColumn get alertSoundMuted => integer().withDefault(const Constant(0))();
+  IntColumn get alertFlashEnabled => integer().withDefault(const Constant(0))();
   TextColumn get focusMode => text().withDefault(const Constant('loose'))();
   TextColumn get whitelistJson => text()
       .map(const StringListConverter())

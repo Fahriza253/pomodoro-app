@@ -1,7 +1,7 @@
 name: pomodoro_app
 description: Offline-first Pomodoro timer app — MVP.
 publish_to: "none"
-version: 1.0.0+1
+version: 1.0.1+2
 
 environment:
   sdk: ^3.12.2
@@ -26,6 +26,7 @@ dependencies:
   timezone: ^0.10.0
   audioplayers: ^6.5.0
   flutter_timezone: ^5.1.0
+  live_activities: ^2.5.1
 
 dev_dependencies:
   flutter_test:

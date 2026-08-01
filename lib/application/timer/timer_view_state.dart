@@ -1,6 +1,6 @@
 import 'package:pomodoro_app/domain/common/enums.dart';
 
-/// Presentation-facing timer state ([API_CONTRACT](../../docs/system/implementation/API_CONTRACT.md)).
+/// Presentation-facing timer state ([API_CONTRACT](docs/internal/system/implementation/API_CONTRACT.md)).
 class TimerViewState {
   const TimerViewState({
     required this.phase,

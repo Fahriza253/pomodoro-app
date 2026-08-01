@@ -1,6 +1,6 @@
 import 'package:pomodoro_app/domain/timer/active_timer_state.dart';
 
-/// Bootstrap recovery outcome ([API_CONTRACT](../../docs/system/implementation/API_CONTRACT.md)).
+/// Bootstrap recovery outcome ([API_CONTRACT](docs/internal/system/implementation/API_CONTRACT.md)).
 sealed class RecoveryCheckResult {
   const RecoveryCheckResult();
 }

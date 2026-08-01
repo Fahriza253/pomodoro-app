@@ -11,6 +11,8 @@ import 'package:pomodoro_app/domain/common/result.dart';
 import 'package:pomodoro_app/domain/settings/app_settings.dart';
 import 'package:pomodoro_app/domain/tag/tag_inputs.dart';
 import 'package:pomodoro_app/platform/audio/alert_sound_adapter_stub.dart';
+import 'package:pomodoro_app/platform/flash/flash_adapter_stub.dart';
+import 'package:pomodoro_app/platform/haptic/haptic_adapter_stub.dart';
 import 'package:pomodoro_app/platform/aod/aod_adapter_stub.dart';
 import 'package:pomodoro_app/platform/clock/fake_clock_adapter.dart';
 import 'package:pomodoro_app/platform/focus/focus_adapter.dart';
@@ -96,6 +98,8 @@ void main() {
         settingsRepository: DriftSettingsRepository(db),
         notificationAdapter: notifications,
         alertSoundAdapter: alertSounds,
+        hapticAdapter: const StubHapticAdapter(),
+        flashAdapter: const StubFlashAdapter(),
         focusAdapter: StubFocusAdapter(),
         aodAdapter: const StubAODAdapter(),
         clock: clock,
@@ -200,6 +204,8 @@ void main() {
         settingsRepository: DriftSettingsRepository(db),
         notificationAdapter: StubNotificationAdapter(),
         alertSoundAdapter: StubAlertSoundAdapter(),
+        hapticAdapter: const StubHapticAdapter(),
+        flashAdapter: const StubFlashAdapter(),
         focusAdapter: StubFocusAdapter(),
         aodAdapter: const StubAODAdapter(),
         clock: clock,
@@ -237,6 +243,8 @@ void main() {
           settingsRepository: DriftSettingsRepository(db),
           notificationAdapter: StubNotificationAdapter(),
           alertSoundAdapter: StubAlertSoundAdapter(),
+          hapticAdapter: const StubHapticAdapter(),
+          flashAdapter: const StubFlashAdapter(),
           focusAdapter: StubFocusAdapter(),
           aodAdapter: const StubAODAdapter(),
           clock: clock,
@@ -270,6 +278,8 @@ void main() {
         settingsRepository: DriftSettingsRepository(db),
         notificationAdapter: StubNotificationAdapter(),
         alertSoundAdapter: StubAlertSoundAdapter(),
+        hapticAdapter: const StubHapticAdapter(),
+        flashAdapter: const StubFlashAdapter(),
         focusAdapter: StubFocusAdapter(),
         aodAdapter: const StubAODAdapter(),
         clock: clock,
@@ -398,6 +408,37 @@ void main() {
       await coordinator.onLifecycleForeground();
       expect(notifications.cancelledIds, contains(kRunningTimerNotificationId));
     });
+
+    test(
+      'pause while backgrounded re-syncs running timer without chronometer',
+      () async {
+        await coordinator.startPomodoro(tagId);
+        await coordinator.onLifecycleBackground();
+        final beforePause = notifications.showRunningTimers.length;
+        expect(
+          notifications.showRunningTimers.last.chronometerAnchorUtc,
+          isNotNull,
+        );
+
+        final paused = await coordinator.pause();
+        expect(paused.isOk, isTrue);
+        expect(
+          notifications.showRunningTimers.length,
+          greaterThan(beforePause),
+        );
+        expect(
+          notifications.showRunningTimers.last.chronometerAnchorUtc,
+          isNull,
+        );
+
+        final resumed = await coordinator.resume();
+        expect(resumed.isOk, isTrue);
+        expect(
+          notifications.showRunningTimers.last.chronometerAnchorUtc,
+          isNotNull,
+        );
+      },
+    );
 
     test(
       'skipBreak from post-focus prompt marks pending rest skipped',
@@ -549,6 +590,8 @@ void main() {
         settingsRepository: settings,
         notificationAdapter: notifications,
         alertSoundAdapter: alertSounds,
+        hapticAdapter: const StubHapticAdapter(),
+        flashAdapter: const StubFlashAdapter(),
         focusAdapter: focus,
         aodAdapter: const StubAODAdapter(),
         clock: clock,

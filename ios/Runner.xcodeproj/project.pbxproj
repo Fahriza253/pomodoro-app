@@ -19,6 +19,9 @@
 		A1B2C3D40100000100ALERT /* success_arpeggio.wav in Resources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40100001100ALERT /* success_arpeggio.wav */; };
 		A1B2C3D40100000200ALERT /* break_coin.wav in Resources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40100001200ALERT /* break_coin.wav */; };
 		A1B2C3D40100000300ALERT /* failure_wrong.wav in Resources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40100001300ALERT /* failure_wrong.wav */; };
+		B2C3D4E50100000100WIDG /* PomodoroTimerWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2C3D4E50100001100WIDG /* PomodoroTimerWidget.swift */; };
+		B2C3D4E50100000200WIDG /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B2C3D4E50100001400WIDG /* Assets.xcassets */; };
+		B2C3D4E50100000300WIDG /* PomodoroTimerWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = B2C3D4E50100001500WIDG /* PomodoroTimerWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -28,6 +31,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = 97C146ED1CF9000F007C117D;
 			remoteInfo = Runner;
+		};
+		B2C3D4E50100004200WIDG /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 97C146E61CF9000F007C117D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B2C3D4E50100004100WIDG;
+			remoteInfo = PomodoroTimerWidget;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -40,6 +50,17 @@
 			files = (
 			);
 			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B2C3D4E50100003400WIDG /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				B2C3D4E50100000300WIDG /* PomodoroTimerWidget.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
@@ -66,6 +87,11 @@
 		A1B2C3D40100001100ALERT /* success_arpeggio.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = success_arpeggio.wav; sourceTree = "<group>"; };
 		A1B2C3D40100001200ALERT /* break_coin.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = break_coin.wav; sourceTree = "<group>"; };
 		A1B2C3D40100001300ALERT /* failure_wrong.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = failure_wrong.wav; sourceTree = "<group>"; };
+		B2C3D4E50100001100WIDG /* PomodoroTimerWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PomodoroTimerWidget.swift; sourceTree = "<group>"; };
+		B2C3D4E50100001200WIDG /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B2C3D4E50100001300WIDG /* PomodoroTimerWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PomodoroTimerWidget.entitlements; sourceTree = "<group>"; };
+		B2C3D4E50100001400WIDG /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		B2C3D4E50100001500WIDG /* PomodoroTimerWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = PomodoroTimerWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -74,6 +100,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				78A318202AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B2C3D4E50100003200WIDG /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -100,11 +133,23 @@
 			name = Flutter;
 			sourceTree = "<group>";
 		};
+		B2C3D4E50100002100WIDG /* PomodoroTimerWidget */ = {
+			isa = PBXGroup;
+			children = (
+				B2C3D4E50100001100WIDG /* PomodoroTimerWidget.swift */,
+				B2C3D4E50100001200WIDG /* Info.plist */,
+				B2C3D4E50100001300WIDG /* PomodoroTimerWidget.entitlements */,
+				B2C3D4E50100001400WIDG /* Assets.xcassets */,
+			);
+			path = PomodoroTimerWidget;
+			sourceTree = "<group>";
+		};
 		97C146E51CF9000F007C117D = {
 			isa = PBXGroup;
 			children = (
 				9740EEB11CF90186004384FC /* Flutter */,
 				97C146F01CF9000F007C117D /* Runner */,
+				B2C3D4E50100002100WIDG /* PomodoroTimerWidget */,
 				97C146EF1CF9000F007C117D /* Products */,
 				331C8082294A63A400263BE5 /* RunnerTests */,
 			);
@@ -115,6 +160,7 @@
 			children = (
 				97C146EE1CF9000F007C117D /* Runner.app */,
 				331C8081294A63A400263BE5 /* RunnerTests.xctest */,
+				B2C3D4E50100001500WIDG /* PomodoroTimerWidget.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -168,11 +214,13 @@
 				97C146EB1CF9000F007C117D /* Frameworks */,
 				97C146EC1CF9000F007C117D /* Resources */,
 				9705A1C41CF9048500538489 /* Embed Frameworks */,
+				B2C3D4E50100003400WIDG /* Embed Foundation Extensions */,
 				3B06AD1E1E4923F5004D2608 /* Thin Binary */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				B2C3D4E50100004300WIDG /* PBXTargetDependency */,
 			);
 			name = Runner;
 			packageProductDependencies = (
@@ -181,6 +229,23 @@
 			productName = Runner;
 			productReference = 97C146EE1CF9000F007C117D /* Runner.app */;
 			productType = "com.apple.product-type.application";
+		};
+		B2C3D4E50100004100WIDG /* PomodoroTimerWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B2C3D4E50100005400WIDG /* Build configuration list for PBXNativeTarget "PomodoroTimerWidget" */;
+			buildPhases = (
+				B2C3D4E50100003100WIDG /* Sources */,
+				B2C3D4E50100003200WIDG /* Frameworks */,
+				B2C3D4E50100003300WIDG /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = PomodoroTimerWidget;
+			productName = PomodoroTimerWidget;
+			productReference = B2C3D4E50100001500WIDG /* PomodoroTimerWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -199,6 +264,9 @@
 					97C146ED1CF9000F007C117D = {
 						CreatedOnToolsVersion = 7.3.1;
 						LastSwiftMigration = 1100;
+					};
+					B2C3D4E50100004100WIDG = {
+						CreatedOnToolsVersion = 15.0;
 					};
 				};
 			};
@@ -220,6 +288,7 @@
 			targets = (
 				97C146ED1CF9000F007C117D /* Runner */,
 				331C8080294A63A400263BE5 /* RunnerTests */,
+				B2C3D4E50100004100WIDG /* PomodoroTimerWidget */,
 			);
 		};
 /* End PBXProject section */
@@ -243,6 +312,14 @@
 				A1B2C3D40100000100ALERT /* success_arpeggio.wav in Resources */,
 				A1B2C3D40100000200ALERT /* break_coin.wav in Resources */,
 				A1B2C3D40100000300ALERT /* failure_wrong.wav in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B2C3D4E50100003300WIDG /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B2C3D4E50100000200WIDG /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -301,6 +378,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B2C3D4E50100003100WIDG /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B2C3D4E50100000100WIDG /* PomodoroTimerWidget.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -308,6 +393,11 @@
 			isa = PBXTargetDependency;
 			target = 97C146ED1CF9000F007C117D /* Runner */;
 			targetProxy = 331C8085294A63A400263BE5 /* PBXContainerItemProxy */;
+		};
+		B2C3D4E50100004300WIDG /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B2C3D4E50100004100WIDG /* PomodoroTimerWidget */;
+			targetProxy = B2C3D4E50100004200WIDG /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -608,6 +698,84 @@
 			};
 			name = Release;
 		};
+
+		B2C3D4E50100005100WIDG /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = PomodoroTimerWidget/PomodoroTimerWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = PomodoroTimerWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.1;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.dpzstudio.pomodoroapp.PomodoroTimerWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+
+		B2C3D4E50100005200WIDG /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = PomodoroTimerWidget/PomodoroTimerWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = PomodoroTimerWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.1;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.dpzstudio.pomodoroapp.PomodoroTimerWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+
+		B2C3D4E50100005300WIDG /* Profile */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = PomodoroTimerWidget/PomodoroTimerWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = PomodoroTimerWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.1;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.dpzstudio.pomodoroapp.PomodoroTimerWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Profile;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -637,6 +805,16 @@
 				97C147061CF9000F007C117D /* Debug */,
 				97C147071CF9000F007C117D /* Release */,
 				249021D4217E4FDB00AE95B9 /* Profile */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		B2C3D4E50100005400WIDG /* Build configuration list for PBXNativeTarget "PomodoroTimerWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B2C3D4E50100005100WIDG /* Debug */,
+				B2C3D4E50100005200WIDG /* Release */,
+				B2C3D4E50100005300WIDG /* Profile */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

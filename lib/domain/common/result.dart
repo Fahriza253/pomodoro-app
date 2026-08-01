@@ -1,6 +1,6 @@
 import 'package:pomodoro_app/domain/common/app_error.dart';
 
-/// Application-layer result alias ([API_CONTRACT](../docs/system/implementation/API_CONTRACT.md)).
+/// Application-layer result alias ([API_CONTRACT](docs/internal/system/implementation/API_CONTRACT.md)).
 typedef AppResult<T> = ({T? value, AppError? error});
 
 extension AppResultX<T> on AppResult<T> {

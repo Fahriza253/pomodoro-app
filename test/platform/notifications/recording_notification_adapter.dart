@@ -16,6 +16,7 @@ class RecordingNotificationAdapter implements NotificationAdapter {
     deepLinkOnTap: true,
     customSound: true,
     backgroundDelivery: true,
+    liveTimerStatus: true,
   );
 
   @override
@@ -26,6 +27,7 @@ class RecordingNotificationAdapter implements NotificationAdapter {
     required int notificationId,
     required String sessionId,
     required String soundToneId,
+    bool playSound = true,
   }) async {
     scheduledSegmentEnds.add(
       ScheduledSegmentEndCall(
@@ -35,6 +37,7 @@ class RecordingNotificationAdapter implements NotificationAdapter {
         notificationId: notificationId,
         sessionId: sessionId,
         soundToneId: soundToneId,
+        playSound: playSound,
       ),
     );
   }
@@ -47,6 +50,7 @@ class RecordingNotificationAdapter implements NotificationAdapter {
     required String soundToneId,
     int? notificationId,
     String? deepLinkSource,
+    bool playSound = true,
   }) async {
     showAlertTitles.add(title);
   }
@@ -56,6 +60,7 @@ class RecordingNotificationAdapter implements NotificationAdapter {
     required String title,
     required String body,
     required String sessionId,
+    bool playSound = true,
   }) async {}
 
   @override
@@ -88,6 +93,7 @@ class ScheduledSegmentEndCall {
     required this.notificationId,
     required this.sessionId,
     required this.soundToneId,
+    this.playSound = true,
   });
 
   final DateTime fireAtUtc;
@@ -96,4 +102,5 @@ class ScheduledSegmentEndCall {
   final int notificationId;
   final String sessionId;
   final String soundToneId;
+  final bool playSound;
 }

@@ -8,6 +8,8 @@ import 'package:pomodoro_app/data/repositories/tag_repository.dart';
 import 'package:pomodoro_app/domain/common/enums.dart';
 import 'package:pomodoro_app/domain/timer/active_timer_state.dart';
 import 'package:pomodoro_app/platform/audio/alert_sound_adapter_stub.dart';
+import 'package:pomodoro_app/platform/flash/flash_adapter_stub.dart';
+import 'package:pomodoro_app/platform/haptic/haptic_adapter_stub.dart';
 import 'package:pomodoro_app/platform/aod/aod_adapter_stub.dart';
 import 'package:pomodoro_app/platform/clock/fake_clock_adapter.dart';
 import 'package:pomodoro_app/platform/focus/focus_adapter_stub.dart';
@@ -42,6 +44,8 @@ void main() {
         settingsRepository: DriftSettingsRepository(db),
         notificationAdapter: StubNotificationAdapter(),
         alertSoundAdapter: StubAlertSoundAdapter(),
+        hapticAdapter: const StubHapticAdapter(),
+        flashAdapter: const StubFlashAdapter(),
         focusAdapter: StubFocusAdapter(),
         aodAdapter: const StubAODAdapter(),
         clock: clock,

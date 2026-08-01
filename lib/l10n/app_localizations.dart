@@ -1133,7 +1133,7 @@ abstract class AppLocalizations {
   /// No description provided for @alertTonesTitle.
   ///
   /// In en, this message translates to:
-  /// **'Alert tones'**
+  /// **'Alert'**
   String get alertTonesTitle;
 
   /// No description provided for @focusComplete.
@@ -1159,6 +1159,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Tap a tone to preview it'**
   String get alertTonePreviewHint;
+
+  /// No description provided for @alertControlsSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Alert controls'**
+  String get alertControlsSection;
+
+  /// No description provided for @alertControlsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Haptic, sound, and flash for focus, breaks, failure & reminders'**
+  String get alertControlsHint;
+
+  /// No description provided for @alertHaptic.
+  ///
+  /// In en, this message translates to:
+  /// **'Haptic'**
+  String get alertHaptic;
+
+  /// No description provided for @alertSoundMute.
+  ///
+  /// In en, this message translates to:
+  /// **'Mute sound'**
+  String get alertSoundMute;
+
+  /// No description provided for @alertFlash.
+  ///
+  /// In en, this message translates to:
+  /// **'Flash'**
+  String get alertFlash;
+
+  /// No description provided for @alertFlashUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'Flash is not supported on this device'**
+  String get alertFlashUnsupported;
+
+  /// No description provided for @alertControlsSheetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Alert controls'**
+  String get alertControlsSheetTitle;
+
+  /// No description provided for @muted.
+  ///
+  /// In en, this message translates to:
+  /// **'Muted'**
+  String get muted;
+
+  /// No description provided for @unmuted.
+  ///
+  /// In en, this message translates to:
+  /// **'On'**
+  String get unmuted;
 
   /// No description provided for @focusModeTitle.
   ///

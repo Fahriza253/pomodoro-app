@@ -57,6 +57,7 @@ class _InitFailedNotificationAdapter implements NotificationAdapter {
     required int notificationId,
     required String sessionId,
     required String soundToneId,
+    bool playSound = true,
   }) async {}
 
   @override
@@ -67,6 +68,7 @@ class _InitFailedNotificationAdapter implements NotificationAdapter {
     required String soundToneId,
     int? notificationId,
     String? deepLinkSource,
+    bool playSound = true,
   }) async {}
 
   @override
@@ -74,6 +76,7 @@ class _InitFailedNotificationAdapter implements NotificationAdapter {
     required String title,
     required String body,
     required String sessionId,
+    bool playSound = true,
   }) async {}
 
   @override

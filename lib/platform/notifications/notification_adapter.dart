@@ -9,6 +9,7 @@ class NotificationCapabilities {
     this.customSound = false,
     this.backgroundDelivery = false,
     this.initFailed = false,
+    this.liveTimerStatus = false,
   });
 
   final bool scheduledSegmentEnd;
@@ -19,6 +20,9 @@ class NotificationCapabilities {
 
   /// Plugin failed during bootstrap — alerts unavailable until app restart.
   final bool initFailed;
+
+  /// OS-owned live timer (Android chronometer and/or iOS Live Activity).
+  final bool liveTimerStatus;
 }
 
 abstract class NotificationAdapter {
@@ -35,6 +39,7 @@ abstract class NotificationAdapter {
     required int notificationId,
     required String sessionId,
     required String soundToneId,
+    bool playSound = true,
   });
 
   /// Immediate alert (e.g. focus failure) with custom sound.
@@ -48,12 +53,14 @@ abstract class NotificationAdapter {
     required String soundToneId,
     int? notificationId,
     String? deepLinkSource,
+    bool playSound = true,
   });
 
   Future<void> showReminder({
     required String title,
     required String body,
     required String sessionId,
+    bool playSound = true,
   });
 
   /// Ongoing session timer while the app is backgrounded.

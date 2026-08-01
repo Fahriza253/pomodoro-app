@@ -5,6 +5,7 @@ import 'package:pomodoro_app/domain/common/result.dart';
 import 'package:pomodoro_app/domain/settings/alert_tone_catalog.dart';
 import 'package:pomodoro_app/domain/settings/app_settings.dart';
 import 'package:pomodoro_app/presentation/l10n/l10n_extensions.dart';
+import 'package:pomodoro_app/presentation/settings/alert_controls_section.dart';
 import 'package:pomodoro_app/presentation/settings/settings_error_messages.dart';
 import 'package:pomodoro_app/presentation/settings/settings_providers.dart';
 
@@ -76,7 +77,9 @@ class _AlertSettingsScreenState extends ConsumerState<AlertSettingsScreen> {
     setState(() => _saving = false);
     if (result.isErr) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(settingsErrorMessage(result.error!, context.l10n))),
+        SnackBar(
+          content: Text(settingsErrorMessage(result.error!, context.l10n)),
+        ),
       );
     }
   }
@@ -94,6 +97,8 @@ class _AlertSettingsScreenState extends ConsumerState<AlertSettingsScreen> {
         data: (settings) => ListView(
           padding: const EdgeInsets.only(bottom: 24),
           children: [
+            _sectionHeader(context, l10n.alertControlsSection),
+            const AlertControlsSection(),
             _sectionHeader(context, l10n.focusComplete),
             RadioGroup<String>(
               groupValue: settings.alertToneFocusSuccess,

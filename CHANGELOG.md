@@ -5,6 +5,17 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.1] — 2026-08-01
+
+### Added
+
+- iOS Live Activities for the running timer (`PomodoroTimerWidget`, `live_activities`)
+- Alert Settings controls: haptic, mute, and flash modalities
+
+### Fixed
+
+- Live Activities / running-timer notification sync on iOS
+
 ## [1.0.0] — 2026-07-19
 
 First public Android release (Play Store target).

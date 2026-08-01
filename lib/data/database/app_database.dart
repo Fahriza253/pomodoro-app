@@ -19,7 +19,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -59,6 +59,14 @@ class AppDatabase extends _$AppDatabase {
         await customStatement(
           'ALTER TABLE app_settings DROP COLUMN track_manual_duration',
         );
+      }
+      if (from < 6) {
+        await m.addColumn(
+          appSettingsTable,
+          appSettingsTable.alertHapticEnabled,
+        );
+        await m.addColumn(appSettingsTable, appSettingsTable.alertSoundMuted);
+        await m.addColumn(appSettingsTable, appSettingsTable.alertFlashEnabled);
       }
     },
   );

@@ -3544,6 +3544,41 @@ class $AppSettingsTableTable extends AppSettingsTable
         requiredDuringInsert: false,
         defaultValue: const Constant('failure_wrong'),
       );
+  static const VerificationMeta _alertHapticEnabledMeta =
+      const VerificationMeta('alertHapticEnabled');
+  @override
+  late final GeneratedColumn<int> alertHapticEnabled = GeneratedColumn<int>(
+    'alert_haptic_enabled',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _alertSoundMutedMeta = const VerificationMeta(
+    'alertSoundMuted',
+  );
+  @override
+  late final GeneratedColumn<int> alertSoundMuted = GeneratedColumn<int>(
+    'alert_sound_muted',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _alertFlashEnabledMeta = const VerificationMeta(
+    'alertFlashEnabled',
+  );
+  @override
+  late final GeneratedColumn<int> alertFlashEnabled = GeneratedColumn<int>(
+    'alert_flash_enabled',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   static const VerificationMeta _focusModeMeta = const VerificationMeta(
     'focusMode',
   );
@@ -3664,6 +3699,9 @@ class $AppSettingsTableTable extends AppSettingsTable
     alertToneFocusSuccess,
     alertToneBreakOver,
     alertToneFocusFailure,
+    alertHapticEnabled,
+    alertSoundMuted,
+    alertFlashEnabled,
     focusMode,
     whitelistJson,
     focusViolationThresholdSec,
@@ -3716,6 +3754,33 @@ class $AppSettingsTableTable extends AppSettingsTable
         alertToneFocusFailure.isAcceptableOrUnknown(
           data['alert_tone_focus_failure']!,
           _alertToneFocusFailureMeta,
+        ),
+      );
+    }
+    if (data.containsKey('alert_haptic_enabled')) {
+      context.handle(
+        _alertHapticEnabledMeta,
+        alertHapticEnabled.isAcceptableOrUnknown(
+          data['alert_haptic_enabled']!,
+          _alertHapticEnabledMeta,
+        ),
+      );
+    }
+    if (data.containsKey('alert_sound_muted')) {
+      context.handle(
+        _alertSoundMutedMeta,
+        alertSoundMuted.isAcceptableOrUnknown(
+          data['alert_sound_muted']!,
+          _alertSoundMutedMeta,
+        ),
+      );
+    }
+    if (data.containsKey('alert_flash_enabled')) {
+      context.handle(
+        _alertFlashEnabledMeta,
+        alertFlashEnabled.isAcceptableOrUnknown(
+          data['alert_flash_enabled']!,
+          _alertFlashEnabledMeta,
         ),
       );
     }
@@ -3812,6 +3877,18 @@ class $AppSettingsTableTable extends AppSettingsTable
         DriftSqlType.string,
         data['${effectivePrefix}alert_tone_focus_failure'],
       )!,
+      alertHapticEnabled: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}alert_haptic_enabled'],
+      )!,
+      alertSoundMuted: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}alert_sound_muted'],
+      )!,
+      alertFlashEnabled: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}alert_flash_enabled'],
+      )!,
       focusMode: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}focus_mode'],
@@ -3872,6 +3949,9 @@ class AppSettingsTableData extends DataClass
   final String alertToneFocusSuccess;
   final String alertToneBreakOver;
   final String alertToneFocusFailure;
+  final int alertHapticEnabled;
+  final int alertSoundMuted;
+  final int alertFlashEnabled;
   final String focusMode;
   final List<String> whitelistJson;
   final int focusViolationThresholdSec;
@@ -3887,6 +3967,9 @@ class AppSettingsTableData extends DataClass
     required this.alertToneFocusSuccess,
     required this.alertToneBreakOver,
     required this.alertToneFocusFailure,
+    required this.alertHapticEnabled,
+    required this.alertSoundMuted,
+    required this.alertFlashEnabled,
     required this.focusMode,
     required this.whitelistJson,
     required this.focusViolationThresholdSec,
@@ -3905,6 +3988,9 @@ class AppSettingsTableData extends DataClass
     map['alert_tone'] = Variable<String>(alertToneFocusSuccess);
     map['alert_tone_break_over'] = Variable<String>(alertToneBreakOver);
     map['alert_tone_focus_failure'] = Variable<String>(alertToneFocusFailure);
+    map['alert_haptic_enabled'] = Variable<int>(alertHapticEnabled);
+    map['alert_sound_muted'] = Variable<int>(alertSoundMuted);
+    map['alert_flash_enabled'] = Variable<int>(alertFlashEnabled);
     map['focus_mode'] = Variable<String>(focusMode);
     {
       map['whitelist_json'] = Variable<String>(
@@ -3930,6 +4016,9 @@ class AppSettingsTableData extends DataClass
       alertToneFocusSuccess: Value(alertToneFocusSuccess),
       alertToneBreakOver: Value(alertToneBreakOver),
       alertToneFocusFailure: Value(alertToneFocusFailure),
+      alertHapticEnabled: Value(alertHapticEnabled),
+      alertSoundMuted: Value(alertSoundMuted),
+      alertFlashEnabled: Value(alertFlashEnabled),
       focusMode: Value(focusMode),
       whitelistJson: Value(whitelistJson),
       focusViolationThresholdSec: Value(focusViolationThresholdSec),
@@ -3959,6 +4048,9 @@ class AppSettingsTableData extends DataClass
       alertToneFocusFailure: serializer.fromJson<String>(
         json['alertToneFocusFailure'],
       ),
+      alertHapticEnabled: serializer.fromJson<int>(json['alertHapticEnabled']),
+      alertSoundMuted: serializer.fromJson<int>(json['alertSoundMuted']),
+      alertFlashEnabled: serializer.fromJson<int>(json['alertFlashEnabled']),
       focusMode: serializer.fromJson<String>(json['focusMode']),
       whitelistJson: serializer.fromJson<List<String>>(json['whitelistJson']),
       focusViolationThresholdSec: serializer.fromJson<int>(
@@ -3983,6 +4075,9 @@ class AppSettingsTableData extends DataClass
       'alertToneFocusSuccess': serializer.toJson<String>(alertToneFocusSuccess),
       'alertToneBreakOver': serializer.toJson<String>(alertToneBreakOver),
       'alertToneFocusFailure': serializer.toJson<String>(alertToneFocusFailure),
+      'alertHapticEnabled': serializer.toJson<int>(alertHapticEnabled),
+      'alertSoundMuted': serializer.toJson<int>(alertSoundMuted),
+      'alertFlashEnabled': serializer.toJson<int>(alertFlashEnabled),
       'focusMode': serializer.toJson<String>(focusMode),
       'whitelistJson': serializer.toJson<List<String>>(whitelistJson),
       'focusViolationThresholdSec': serializer.toJson<int>(
@@ -4003,6 +4098,9 @@ class AppSettingsTableData extends DataClass
     String? alertToneFocusSuccess,
     String? alertToneBreakOver,
     String? alertToneFocusFailure,
+    int? alertHapticEnabled,
+    int? alertSoundMuted,
+    int? alertFlashEnabled,
     String? focusMode,
     List<String>? whitelistJson,
     int? focusViolationThresholdSec,
@@ -4018,6 +4116,9 @@ class AppSettingsTableData extends DataClass
     alertToneFocusSuccess: alertToneFocusSuccess ?? this.alertToneFocusSuccess,
     alertToneBreakOver: alertToneBreakOver ?? this.alertToneBreakOver,
     alertToneFocusFailure: alertToneFocusFailure ?? this.alertToneFocusFailure,
+    alertHapticEnabled: alertHapticEnabled ?? this.alertHapticEnabled,
+    alertSoundMuted: alertSoundMuted ?? this.alertSoundMuted,
+    alertFlashEnabled: alertFlashEnabled ?? this.alertFlashEnabled,
     focusMode: focusMode ?? this.focusMode,
     whitelistJson: whitelistJson ?? this.whitelistJson,
     focusViolationThresholdSec:
@@ -4042,6 +4143,15 @@ class AppSettingsTableData extends DataClass
       alertToneFocusFailure: data.alertToneFocusFailure.present
           ? data.alertToneFocusFailure.value
           : this.alertToneFocusFailure,
+      alertHapticEnabled: data.alertHapticEnabled.present
+          ? data.alertHapticEnabled.value
+          : this.alertHapticEnabled,
+      alertSoundMuted: data.alertSoundMuted.present
+          ? data.alertSoundMuted.value
+          : this.alertSoundMuted,
+      alertFlashEnabled: data.alertFlashEnabled.present
+          ? data.alertFlashEnabled.value
+          : this.alertFlashEnabled,
       focusMode: data.focusMode.present ? data.focusMode.value : this.focusMode,
       whitelistJson: data.whitelistJson.present
           ? data.whitelistJson.value
@@ -4074,6 +4184,9 @@ class AppSettingsTableData extends DataClass
           ..write('alertToneFocusSuccess: $alertToneFocusSuccess, ')
           ..write('alertToneBreakOver: $alertToneBreakOver, ')
           ..write('alertToneFocusFailure: $alertToneFocusFailure, ')
+          ..write('alertHapticEnabled: $alertHapticEnabled, ')
+          ..write('alertSoundMuted: $alertSoundMuted, ')
+          ..write('alertFlashEnabled: $alertFlashEnabled, ')
           ..write('focusMode: $focusMode, ')
           ..write('whitelistJson: $whitelistJson, ')
           ..write('focusViolationThresholdSec: $focusViolationThresholdSec, ')
@@ -4094,6 +4207,9 @@ class AppSettingsTableData extends DataClass
     alertToneFocusSuccess,
     alertToneBreakOver,
     alertToneFocusFailure,
+    alertHapticEnabled,
+    alertSoundMuted,
+    alertFlashEnabled,
     focusMode,
     whitelistJson,
     focusViolationThresholdSec,
@@ -4113,6 +4229,9 @@ class AppSettingsTableData extends DataClass
           other.alertToneFocusSuccess == this.alertToneFocusSuccess &&
           other.alertToneBreakOver == this.alertToneBreakOver &&
           other.alertToneFocusFailure == this.alertToneFocusFailure &&
+          other.alertHapticEnabled == this.alertHapticEnabled &&
+          other.alertSoundMuted == this.alertSoundMuted &&
+          other.alertFlashEnabled == this.alertFlashEnabled &&
           other.focusMode == this.focusMode &&
           other.whitelistJson == this.whitelistJson &&
           other.focusViolationThresholdSec == this.focusViolationThresholdSec &&
@@ -4130,6 +4249,9 @@ class AppSettingsTableCompanion extends UpdateCompanion<AppSettingsTableData> {
   final Value<String> alertToneFocusSuccess;
   final Value<String> alertToneBreakOver;
   final Value<String> alertToneFocusFailure;
+  final Value<int> alertHapticEnabled;
+  final Value<int> alertSoundMuted;
+  final Value<int> alertFlashEnabled;
   final Value<String> focusMode;
   final Value<List<String>> whitelistJson;
   final Value<int> focusViolationThresholdSec;
@@ -4146,6 +4268,9 @@ class AppSettingsTableCompanion extends UpdateCompanion<AppSettingsTableData> {
     this.alertToneFocusSuccess = const Value.absent(),
     this.alertToneBreakOver = const Value.absent(),
     this.alertToneFocusFailure = const Value.absent(),
+    this.alertHapticEnabled = const Value.absent(),
+    this.alertSoundMuted = const Value.absent(),
+    this.alertFlashEnabled = const Value.absent(),
     this.focusMode = const Value.absent(),
     this.whitelistJson = const Value.absent(),
     this.focusViolationThresholdSec = const Value.absent(),
@@ -4163,6 +4288,9 @@ class AppSettingsTableCompanion extends UpdateCompanion<AppSettingsTableData> {
     this.alertToneFocusSuccess = const Value.absent(),
     this.alertToneBreakOver = const Value.absent(),
     this.alertToneFocusFailure = const Value.absent(),
+    this.alertHapticEnabled = const Value.absent(),
+    this.alertSoundMuted = const Value.absent(),
+    this.alertFlashEnabled = const Value.absent(),
     this.focusMode = const Value.absent(),
     this.whitelistJson = const Value.absent(),
     this.focusViolationThresholdSec = const Value.absent(),
@@ -4181,6 +4309,9 @@ class AppSettingsTableCompanion extends UpdateCompanion<AppSettingsTableData> {
     Expression<String>? alertToneFocusSuccess,
     Expression<String>? alertToneBreakOver,
     Expression<String>? alertToneFocusFailure,
+    Expression<int>? alertHapticEnabled,
+    Expression<int>? alertSoundMuted,
+    Expression<int>? alertFlashEnabled,
     Expression<String>? focusMode,
     Expression<String>? whitelistJson,
     Expression<int>? focusViolationThresholdSec,
@@ -4200,6 +4331,10 @@ class AppSettingsTableCompanion extends UpdateCompanion<AppSettingsTableData> {
         'alert_tone_break_over': alertToneBreakOver,
       if (alertToneFocusFailure != null)
         'alert_tone_focus_failure': alertToneFocusFailure,
+      if (alertHapticEnabled != null)
+        'alert_haptic_enabled': alertHapticEnabled,
+      if (alertSoundMuted != null) 'alert_sound_muted': alertSoundMuted,
+      if (alertFlashEnabled != null) 'alert_flash_enabled': alertFlashEnabled,
       if (focusMode != null) 'focus_mode': focusMode,
       if (whitelistJson != null) 'whitelist_json': whitelistJson,
       if (focusViolationThresholdSec != null)
@@ -4221,6 +4356,9 @@ class AppSettingsTableCompanion extends UpdateCompanion<AppSettingsTableData> {
     Value<String>? alertToneFocusSuccess,
     Value<String>? alertToneBreakOver,
     Value<String>? alertToneFocusFailure,
+    Value<int>? alertHapticEnabled,
+    Value<int>? alertSoundMuted,
+    Value<int>? alertFlashEnabled,
     Value<String>? focusMode,
     Value<List<String>>? whitelistJson,
     Value<int>? focusViolationThresholdSec,
@@ -4240,6 +4378,9 @@ class AppSettingsTableCompanion extends UpdateCompanion<AppSettingsTableData> {
       alertToneBreakOver: alertToneBreakOver ?? this.alertToneBreakOver,
       alertToneFocusFailure:
           alertToneFocusFailure ?? this.alertToneFocusFailure,
+      alertHapticEnabled: alertHapticEnabled ?? this.alertHapticEnabled,
+      alertSoundMuted: alertSoundMuted ?? this.alertSoundMuted,
+      alertFlashEnabled: alertFlashEnabled ?? this.alertFlashEnabled,
       focusMode: focusMode ?? this.focusMode,
       whitelistJson: whitelistJson ?? this.whitelistJson,
       focusViolationThresholdSec:
@@ -4271,6 +4412,15 @@ class AppSettingsTableCompanion extends UpdateCompanion<AppSettingsTableData> {
       map['alert_tone_focus_failure'] = Variable<String>(
         alertToneFocusFailure.value,
       );
+    }
+    if (alertHapticEnabled.present) {
+      map['alert_haptic_enabled'] = Variable<int>(alertHapticEnabled.value);
+    }
+    if (alertSoundMuted.present) {
+      map['alert_sound_muted'] = Variable<int>(alertSoundMuted.value);
+    }
+    if (alertFlashEnabled.present) {
+      map['alert_flash_enabled'] = Variable<int>(alertFlashEnabled.value);
     }
     if (focusMode.present) {
       map['focus_mode'] = Variable<String>(focusMode.value);
@@ -4321,6 +4471,9 @@ class AppSettingsTableCompanion extends UpdateCompanion<AppSettingsTableData> {
           ..write('alertToneFocusSuccess: $alertToneFocusSuccess, ')
           ..write('alertToneBreakOver: $alertToneBreakOver, ')
           ..write('alertToneFocusFailure: $alertToneFocusFailure, ')
+          ..write('alertHapticEnabled: $alertHapticEnabled, ')
+          ..write('alertSoundMuted: $alertSoundMuted, ')
+          ..write('alertFlashEnabled: $alertFlashEnabled, ')
           ..write('focusMode: $focusMode, ')
           ..write('whitelistJson: $whitelistJson, ')
           ..write('focusViolationThresholdSec: $focusViolationThresholdSec, ')
@@ -7073,6 +7226,9 @@ typedef $$AppSettingsTableTableCreateCompanionBuilder =
       Value<String> alertToneFocusSuccess,
       Value<String> alertToneBreakOver,
       Value<String> alertToneFocusFailure,
+      Value<int> alertHapticEnabled,
+      Value<int> alertSoundMuted,
+      Value<int> alertFlashEnabled,
       Value<String> focusMode,
       Value<List<String>> whitelistJson,
       Value<int> focusViolationThresholdSec,
@@ -7091,6 +7247,9 @@ typedef $$AppSettingsTableTableUpdateCompanionBuilder =
       Value<String> alertToneFocusSuccess,
       Value<String> alertToneBreakOver,
       Value<String> alertToneFocusFailure,
+      Value<int> alertHapticEnabled,
+      Value<int> alertSoundMuted,
+      Value<int> alertFlashEnabled,
       Value<String> focusMode,
       Value<List<String>> whitelistJson,
       Value<int> focusViolationThresholdSec,
@@ -7130,6 +7289,21 @@ class $$AppSettingsTableTableFilterComposer
 
   ColumnFilters<String> get alertToneFocusFailure => $composableBuilder(
     column: $table.alertToneFocusFailure,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get alertHapticEnabled => $composableBuilder(
+    column: $table.alertHapticEnabled,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get alertSoundMuted => $composableBuilder(
+    column: $table.alertSoundMuted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get alertFlashEnabled => $composableBuilder(
+    column: $table.alertFlashEnabled,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -7214,6 +7388,21 @@ class $$AppSettingsTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get alertHapticEnabled => $composableBuilder(
+    column: $table.alertHapticEnabled,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get alertSoundMuted => $composableBuilder(
+    column: $table.alertSoundMuted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get alertFlashEnabled => $composableBuilder(
+    column: $table.alertFlashEnabled,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get focusMode => $composableBuilder(
     column: $table.focusMode,
     builder: (column) => ColumnOrderings(column),
@@ -7289,6 +7478,21 @@ class $$AppSettingsTableTableAnnotationComposer
 
   GeneratedColumn<String> get alertToneFocusFailure => $composableBuilder(
     column: $table.alertToneFocusFailure,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get alertHapticEnabled => $composableBuilder(
+    column: $table.alertHapticEnabled,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get alertSoundMuted => $composableBuilder(
+    column: $table.alertSoundMuted,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get alertFlashEnabled => $composableBuilder(
+    column: $table.alertFlashEnabled,
     builder: (column) => column,
   );
 
@@ -7377,6 +7581,9 @@ class $$AppSettingsTableTableTableManager
                 Value<String> alertToneFocusSuccess = const Value.absent(),
                 Value<String> alertToneBreakOver = const Value.absent(),
                 Value<String> alertToneFocusFailure = const Value.absent(),
+                Value<int> alertHapticEnabled = const Value.absent(),
+                Value<int> alertSoundMuted = const Value.absent(),
+                Value<int> alertFlashEnabled = const Value.absent(),
                 Value<String> focusMode = const Value.absent(),
                 Value<List<String>> whitelistJson = const Value.absent(),
                 Value<int> focusViolationThresholdSec = const Value.absent(),
@@ -7393,6 +7600,9 @@ class $$AppSettingsTableTableTableManager
                 alertToneFocusSuccess: alertToneFocusSuccess,
                 alertToneBreakOver: alertToneBreakOver,
                 alertToneFocusFailure: alertToneFocusFailure,
+                alertHapticEnabled: alertHapticEnabled,
+                alertSoundMuted: alertSoundMuted,
+                alertFlashEnabled: alertFlashEnabled,
                 focusMode: focusMode,
                 whitelistJson: whitelistJson,
                 focusViolationThresholdSec: focusViolationThresholdSec,
@@ -7411,6 +7621,9 @@ class $$AppSettingsTableTableTableManager
                 Value<String> alertToneFocusSuccess = const Value.absent(),
                 Value<String> alertToneBreakOver = const Value.absent(),
                 Value<String> alertToneFocusFailure = const Value.absent(),
+                Value<int> alertHapticEnabled = const Value.absent(),
+                Value<int> alertSoundMuted = const Value.absent(),
+                Value<int> alertFlashEnabled = const Value.absent(),
                 Value<String> focusMode = const Value.absent(),
                 Value<List<String>> whitelistJson = const Value.absent(),
                 Value<int> focusViolationThresholdSec = const Value.absent(),
@@ -7427,6 +7640,9 @@ class $$AppSettingsTableTableTableManager
                 alertToneFocusSuccess: alertToneFocusSuccess,
                 alertToneBreakOver: alertToneBreakOver,
                 alertToneFocusFailure: alertToneFocusFailure,
+                alertHapticEnabled: alertHapticEnabled,
+                alertSoundMuted: alertSoundMuted,
+                alertFlashEnabled: alertFlashEnabled,
                 focusMode: focusMode,
                 whitelistJson: whitelistJson,
                 focusViolationThresholdSec: focusViolationThresholdSec,

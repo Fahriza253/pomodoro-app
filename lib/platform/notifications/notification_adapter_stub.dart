@@ -18,6 +18,7 @@ class StubNotificationAdapter implements NotificationAdapter {
     required int notificationId,
     required String sessionId,
     required String soundToneId,
+    bool playSound = true,
   }) async {}
 
   @override
@@ -28,6 +29,7 @@ class StubNotificationAdapter implements NotificationAdapter {
     required String soundToneId,
     int? notificationId,
     String? deepLinkSource,
+    bool playSound = true,
   }) async {}
 
   @override
@@ -35,6 +37,7 @@ class StubNotificationAdapter implements NotificationAdapter {
     required String title,
     required String body,
     required String sessionId,
+    bool playSound = true,
   }) async {}
 
   @override

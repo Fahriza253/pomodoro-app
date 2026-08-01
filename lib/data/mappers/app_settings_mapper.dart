@@ -12,6 +12,9 @@ class AppSettingsMapper {
       alertToneFocusSuccess: row.alertToneFocusSuccess,
       alertToneBreakOver: row.alertToneBreakOver,
       alertToneFocusFailure: row.alertToneFocusFailure,
+      alertHapticEnabled: row.alertHapticEnabled == 1,
+      alertSoundMuted: row.alertSoundMuted == 1,
+      alertFlashEnabled: row.alertFlashEnabled == 1,
       focusMode: FocusMode.fromDb(row.focusMode),
       whitelist: List<String>.from(row.whitelistJson),
       focusViolationThresholdSec: row.focusViolationThresholdSec,
@@ -40,6 +43,15 @@ class AppSettingsMapper {
       ),
       alertToneFocusFailure: Value(
         patch.alertToneFocusFailure ?? current.alertToneFocusFailure,
+      ),
+      alertHapticEnabled: Value(
+        (patch.alertHapticEnabled ?? current.alertHapticEnabled) ? 1 : 0,
+      ),
+      alertSoundMuted: Value(
+        (patch.alertSoundMuted ?? current.alertSoundMuted) ? 1 : 0,
+      ),
+      alertFlashEnabled: Value(
+        (patch.alertFlashEnabled ?? current.alertFlashEnabled) ? 1 : 0,
       ),
       focusMode: Value((patch.focusMode ?? current.focusMode).toDb()),
       whitelistJson: Value(patch.whitelist ?? current.whitelist),
