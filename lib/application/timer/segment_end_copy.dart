@@ -8,7 +8,7 @@ class SegmentEndCopy {
   final String title;
   final String body;
 
-  /// [completedCount] is 1-based and includes the segment that just finished.
+  /// [completedCount] / [totalCount] are Pomodoro **cycle** progress (not segment rows).
   factory SegmentEndCopy.build({
     required NotificationStrings strings,
     required SegmentType finished,

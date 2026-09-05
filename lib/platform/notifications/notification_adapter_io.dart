@@ -257,7 +257,7 @@ class LocalNotificationAdapter implements NotificationAdapter {
   }
 
   @override
-  Future<void> scheduleSegmentEnd({
+  Future<bool> scheduleSegmentEnd({
     required DateTime fireAtUtc,
     required String title,
     required String body,
@@ -267,24 +267,34 @@ class LocalNotificationAdapter implements NotificationAdapter {
     bool playSound = true,
   }) async {
     await _ensureReady();
+    if (_initFailed) {
+      return false;
+    }
     final scheduled = tz.TZDateTime.from(
       truncateUtcToSeconds(fireAtUtc),
       tz.local,
     );
-    if (!scheduled.isAfter(tz.TZDateTime.now(tz.local))) return;
+    if (!scheduled.isAfter(tz.TZDateTime.now(tz.local))) {
+      return false;
+    }
 
-    await _plugin.zonedSchedule(
-      notificationId.abs(),
-      title,
-      body,
-      scheduled,
-      await _notificationDetails(soundToneId, playSound: playSound),
-      androidScheduleMode: await _androidScheduleMode(),
-      payload: NotificationDeepLink.timerSessionUri(
-        sessionId,
-        source: NotificationDeepLink.sourceSegmentEnd,
-      ).toString(),
-    );
+    try {
+      await _plugin.zonedSchedule(
+        notificationId.abs(),
+        title,
+        body,
+        scheduled,
+        await _notificationDetails(soundToneId, playSound: playSound),
+        androidScheduleMode: await _androidScheduleMode(),
+        payload: NotificationDeepLink.timerSessionUri(
+          sessionId,
+          source: NotificationDeepLink.sourceSegmentEnd,
+        ).toString(),
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Prefer exact when [SCHEDULE_EXACT_ALARM] is granted; else inexact.
@@ -303,7 +313,7 @@ class LocalNotificationAdapter implements NotificationAdapter {
   }
 
   @override
-  Future<void> showAlert({
+  Future<bool> showAlert({
     required String title,
     required String body,
     required String sessionId,
@@ -313,58 +323,72 @@ class LocalNotificationAdapter implements NotificationAdapter {
     bool playSound = true,
   }) async {
     await _ensureReady();
+    if (_initFailed) {
+      return false;
+    }
     final id = (notificationId ?? sessionId.hashCode ^ soundToneId.hashCode)
         .abs();
-    await _plugin.show(
-      id,
-      title,
-      body,
-      await _notificationDetails(soundToneId, playSound: playSound),
-      payload: NotificationDeepLink.timerSessionUri(
-        sessionId,
-        source: deepLinkSource,
-      ).toString(),
-    );
+    try {
+      await _plugin.show(
+        id,
+        title,
+        body,
+        await _notificationDetails(soundToneId, playSound: playSound),
+        payload: NotificationDeepLink.timerSessionUri(
+          sessionId,
+          source: deepLinkSource,
+        ).toString(),
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   @override
-  Future<void> showReminder({
+  Future<bool> showReminder({
     required String title,
     required String body,
     required String sessionId,
     bool playSound = true,
   }) async {
     await _ensureReady();
-    final channelId = playSound
-        ? _reminderChannelId
-        : _reminderSilentChannelId;
-    await _plugin.show(
-      sessionId.hashCode.abs(),
-      title,
-      body,
-      NotificationDetails(
-        android: AndroidNotificationDetails(
-          channelId,
-          playSound ? 'Timer Reminders' : 'Timer Reminders (Silent)',
-          channelDescription: playSound
-              ? 'Pengingat sesi Flexible'
-              : 'Pengingat Flexible tanpa suara',
-          importance: Importance.high,
-          priority: Priority.high,
-          visibility: NotificationVisibility.private,
-          category: AndroidNotificationCategory.reminder,
-          icon: _androidIcon,
-          playSound: playSound,
+    if (_initFailed) {
+      return false;
+    }
+    final channelId = playSound ? _reminderChannelId : _reminderSilentChannelId;
+    try {
+      await _plugin.show(
+        sessionId.hashCode.abs(),
+        title,
+        body,
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            channelId,
+            playSound ? 'Timer Reminders' : 'Timer Reminders (Silent)',
+            channelDescription: playSound
+                ? 'Pengingat sesi Flexible'
+                : 'Pengingat Flexible tanpa suara',
+            importance: Importance.high,
+            priority: Priority.high,
+            visibility: NotificationVisibility.private,
+            category: AndroidNotificationCategory.reminder,
+            icon: _androidIcon,
+            playSound: playSound,
+          ),
+          iOS: DarwinNotificationDetails(
+            presentAlert: true,
+            presentSound: playSound,
+            presentBanner: true,
+            presentList: true,
+          ),
         ),
-        iOS: DarwinNotificationDetails(
-          presentAlert: true,
-          presentSound: playSound,
-          presentBanner: true,
-          presentList: true,
-        ),
-      ),
-      payload: NotificationDeepLink.timerSessionUri(sessionId).toString(),
-    );
+        payload: NotificationDeepLink.timerSessionUri(sessionId).toString(),
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   @override

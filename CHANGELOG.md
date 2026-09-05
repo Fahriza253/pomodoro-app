@@ -5,6 +5,22 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] — 2026-09-05
+
+### Fixed
+
+- Segment-end alerts deliver once: in-app only while the UI is visible; one OS notification when backgrounded; no second post or in-app replay on resume
+- Focus-failure and Flexible reminder alerts follow the same once-only channel rule
+- Tag mode config save/validation (slider grid, reminder bounds, clearer validator copy)
+- Timeline Pomodoro session detail shows correct “Cycle X of Y”
+
+### Known limitations (still true in 1.1.0)
+
+- **Manual duration backfill (UC-08)** — not shipped
+- **iOS** — still secondary / degraded vs Android (Focus Strict/Whitelist and background parity)
+- Local database is **not encrypted at rest** (see [PRIVACY.md](PRIVACY.md))
+- **Haptic alert** — still unreliable in foreground and background
+
 ## [1.0.1] — 2026-08-01
 
 ### Added

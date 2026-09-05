@@ -41,7 +41,8 @@ class _TagFormScreenState extends ConsumerState<TagFormScreen>
   int _reminderIntervalMin = 25;
 
   bool _saving = false;
-  String? _loadedTagName;
+  bool _hydrated = false;
+  bool _canDelete = false;
   int _activeTabIndex = 0;
 
   @override
@@ -65,7 +66,7 @@ class _TagFormScreenState extends ConsumerState<TagFormScreen>
   void _applyFormData(TagFormData data) {
     _nameController.text = data.tag.name;
     _color = data.tag.color;
-    _loadedTagName = data.tag.name;
+    _canDelete = data.tag.name != SystemTags.generalName;
     _autoStartBreak = data.pomodoro.autoStartBreak ?? false;
     _autoStartFocus = data.pomodoro.autoStartFocus ?? false;
     _focusMin = TagConfigLimits.snapToGrid(
@@ -112,9 +113,9 @@ class _TagFormScreenState extends ConsumerState<TagFormScreen>
     _reminderEnabled = data.flexible.reminderEnabled ?? true;
     _reminderIntervalMin = TagConfigLimits.snapToGrid(
       data.flexible.reminderIntervalMin ?? 25,
-      min: 5,
-      max: 180,
-      step: 5,
+      min: TagConfigLimits.reminderMinMinutes,
+      max: TagConfigLimits.reminderMaxMinutes,
+      step: TagConfigLimits.reminderStepMinutes,
     );
   }
 
@@ -134,8 +135,10 @@ class _TagFormScreenState extends ConsumerState<TagFormScreen>
                 Text(l10n.loadTagFailed),
                 const SizedBox(height: 12),
                 FilledButton(
-                  onPressed: () =>
-                      ref.invalidate(tagFormProvider(widget.tagId!)),
+                  onPressed: () {
+                    setState(() => _hydrated = false);
+                    ref.invalidate(tagFormProvider(widget.tagId!));
+                  },
                   child: Text(l10n.tryAgain),
                 ),
               ],
@@ -143,17 +146,21 @@ class _TagFormScreenState extends ConsumerState<TagFormScreen>
           ),
         ),
         data: (data) {
-          if (_loadedTagName != data.tag.name) {
+          if (!_hydrated) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) {
-                setState(() => _applyFormData(data));
+              if (!mounted) {
+                return;
               }
+              setState(() {
+                _applyFormData(data);
+                _hydrated = true;
+              });
             });
+            return _scaffold(
+              body: const Center(child: CircularProgressIndicator()),
+            );
           }
-          return _buildForm(
-            context,
-            canDelete: data.tag.name != SystemTags.generalName,
-          );
+          return _buildForm(context, canDelete: _canDelete);
         },
       );
     }
@@ -384,9 +391,9 @@ class _TagFormScreenState extends ConsumerState<TagFormScreen>
         _sliderField(
           label: l10n.reminderInterval,
           value: _reminderIntervalMin,
-          min: 5,
-          max: 180,
-          step: 5,
+          min: TagConfigLimits.reminderMinMinutes,
+          max: TagConfigLimits.reminderMaxMinutes,
+          step: TagConfigLimits.reminderStepMinutes,
           suffix: l10n.minutesUnit,
           onChanged: _reminderEnabled
               ? (v) => setState(() => _reminderIntervalMin = v)
@@ -504,6 +511,9 @@ class _TagFormScreenState extends ConsumerState<TagFormScreen>
       );
       return;
     }
+    if (!widget.isNew) {
+      ref.invalidate(tagFormProvider(widget.tagId!));
+    }
     context.pop();
   }
 
@@ -541,6 +551,7 @@ class _TagFormScreenState extends ConsumerState<TagFormScreen>
       );
       return;
     }
+    ref.invalidate(tagFormProvider(widget.tagId!));
     context.pop();
   }
 

@@ -584,11 +584,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get alertTonePreviewHint => 'Tap a tone to preview it';
 
   @override
-  String get alertControlsSection => 'Alert controls';
+  String get alertControlsSection => 'Alert Controls';
 
   @override
   String get alertControlsHint =>
-      'Haptic, sound, and flash for focus, breaks, failure & reminders';
+      'Haptic, sound, and flash for Alerts and Reminders';
 
   @override
   String get alertHaptic => 'Haptic';
@@ -603,7 +603,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get alertFlashUnsupported => 'Flash is not supported on this device';
 
   @override
-  String get alertControlsSheetTitle => 'Alert controls';
+  String get alertControlsSheetTitle => 'Alert Controls';
 
   @override
   String get muted => 'Muted';

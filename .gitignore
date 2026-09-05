@@ -46,3 +46,4 @@ ios/Runner.xcodeproj/project.xcworkspace/xcuserdata/
 **/*.mobileprovision
 **/*.p12
 **/*.cer
+android/.kotlin/

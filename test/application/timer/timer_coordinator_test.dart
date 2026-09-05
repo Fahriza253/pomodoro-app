@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:pomodoro_app/application/timer/recovery_check_result.dart';
+import 'package:pomodoro_app/application/timer/session_recovery_service.dart';
 import 'package:pomodoro_app/application/timer/timer_coordinator.dart';
 import 'package:pomodoro_app/data/repositories/active_timer_state_repository.dart';
 import 'package:pomodoro_app/data/repositories/session_repository.dart';
@@ -365,18 +367,14 @@ void main() {
     });
 
     test(
-      'onLifecycleBackground re-schedules Pomodoro segment-end notification',
+      'onLifecycleBackground schedules Pomodoro segment-end notification',
       () async {
         await coordinator.startPomodoro(tagId);
-        final scheduledAfterStart = notifications.scheduledSegmentEnds.length;
-        expect(scheduledAfterStart, greaterThan(0));
+        expect(notifications.scheduledSegmentEnds, isEmpty);
 
         await coordinator.onLifecycleBackground();
 
-        expect(
-          notifications.scheduledSegmentEnds.length,
-          greaterThan(scheduledAfterStart),
-        );
+        expect(notifications.scheduledSegmentEnds, isNotEmpty);
         final last = notifications.scheduledSegmentEnds.last;
         expect(last.title, 'Focus complete');
         expect(last.fireAtUtc.isAfter(clock.nowUtc()), isTrue);
@@ -545,20 +543,220 @@ void main() {
       expect(notifications.showAlertTitles, isEmpty);
     });
 
-    test('segment end while backgrounded uses OS alert only', () async {
+    test(
+      'segment end while backgrounded uses scheduled OS alert only',
+      () async {
+        await shortFocusTag();
+        await coordinator.startPomodoro(tagId);
+        await coordinator.onLifecycleBackground();
+        expect(notifications.scheduledSegmentEnds, isNotEmpty);
+        clock.advanceSeconds(30);
+        await coordinator.tick();
+
+        expect(
+          coordinator.engine.currentState.phase,
+          EnginePhase.segmentComplete,
+        );
+        expect(alertSounds.played, isEmpty);
+        expect(notifications.showAlertTitles, isEmpty);
+      },
+    );
+
+    test('resume after scheduled fire time is silent', () async {
       await shortFocusTag();
       await coordinator.startPomodoro(tagId);
       await coordinator.onLifecycleBackground();
       clock.advanceSeconds(30);
-      // Simulate in-process tick while still backgrounded (e.g. isolate wake).
-      await coordinator.tick();
+      await coordinator.onLifecycleForeground();
 
       expect(
         coordinator.engine.currentState.phase,
         EnginePhase.segmentComplete,
       );
       expect(alertSounds.played, isEmpty);
-      expect(notifications.showAlertTitles, hasLength(1));
+      expect(notifications.showAlertTitles, isEmpty);
+    });
+
+    test('resume before fire time then complete is in-app only', () async {
+      await shortFocusTag();
+      await coordinator.startPomodoro(tagId);
+      await coordinator.onLifecycleBackground();
+      clock.advanceSeconds(10);
+      await coordinator.onLifecycleForeground();
+      expect(coordinator.engine.currentState.phase, EnginePhase.running);
+
+      clock.advanceSeconds(20);
+      await coordinator.tick();
+
+      expect(
+        coordinator.engine.currentState.phase,
+        EnginePhase.segmentComplete,
+      );
+      expect(alertSounds.played, hasLength(1));
+      expect(notifications.showAlertTitles, isEmpty);
+    });
+
+    test('failed schedule enqueue falls back to in-app on resume', () async {
+      await shortFocusTag();
+      notifications.scheduleSucceeds = false;
+      await coordinator.startPomodoro(tagId);
+      await coordinator.onLifecycleBackground();
+      expect(notifications.scheduledSegmentEnds, isEmpty);
+      clock.advanceSeconds(30);
+      await coordinator.onLifecycleForeground();
+
+      expect(
+        coordinator.engine.currentState.phase,
+        EnginePhase.segmentComplete,
+      );
+      expect(alertSounds.played, hasLength(1));
+      expect(notifications.showAlertTitles, isEmpty);
+    });
+
+    test('auto-start in background does not post a second OS alert', () async {
+      final tags = DriftTagRepository(db);
+      final general = await tags.getById(tagId);
+      await tags.update(
+        UpdateTagInput(
+          id: tagId,
+          name: general!.name,
+          color: general.color,
+          pomodoro: const TagModeConfigPomodoro(
+            focusDurationSec: 30,
+            shortBreakDurationSec: 10,
+            longBreakDurationSec: 20,
+            sessionsBeforeLongBreak: 2,
+            totalCycles: 2,
+            autoStartBreak: true,
+          ),
+          flexible: TagModeConfigFlexible.defaults(),
+        ),
+      );
+
+      await coordinator.startPomodoro(tagId);
+      await coordinator.onLifecycleBackground();
+      final scheduledId =
+          notifications.scheduledSegmentEnds.last.notificationId;
+      clock.advanceSeconds(30);
+      await coordinator.tick();
+
+      expect(coordinator.engine.currentState.phase, EnginePhase.running);
+      expect(
+        coordinator.engine.currentState.currentSegment?.type,
+        SegmentType.shortRest,
+      );
+      expect(notifications.showAlertTitles, isEmpty);
+      expect(notifications.cancelledIds, isNot(contains(scheduledId)));
+    });
+
+    test(
+      'Flexible Reminder while backgrounded posts one OS and resume is silent',
+      () async {
+        final tags = DriftTagRepository(db);
+        final general = await tags.getById(tagId);
+        await tags.update(
+          UpdateTagInput(
+            id: tagId,
+            name: general!.name,
+            color: general.color,
+            pomodoro: TagModeConfigPomodoro.defaults(),
+            flexible: const TagModeConfigFlexible(reminderIntervalMin: 1),
+          ),
+        );
+
+        await coordinator.startFlexible(tagId);
+        await coordinator.onLifecycleBackground();
+        clock.advanceSeconds(60);
+        await coordinator.tick();
+        await Future<void>.delayed(Duration.zero);
+
+        expect(notifications.showReminderTitles, ['Focus reminder']);
+        expect(alertSounds.played, isEmpty);
+
+        await coordinator.onLifecycleForeground();
+
+        expect(notifications.showReminderTitles, ['Focus reminder']);
+        expect(alertSounds.played, isEmpty);
+        expect(notifications.showAlertTitles, isEmpty);
+      },
+    );
+
+    test(
+      'focus violation while backgrounded posts one OS and resume is silent',
+      () async {
+        final focus = ControllableFocusAdapter();
+        addTearDown(focus.dispose);
+        final settings = DriftSettingsRepository(db);
+        await settings.update(
+          const AppSettingsPatch(focusMode: FocusMode.strict),
+        );
+
+        final focusCoordinator = TimerCoordinator(
+          sessionRepository: sessions,
+          tagRepository: DriftTagRepository(db),
+          activeTimerStateRepository: activeState,
+          settingsRepository: settings,
+          notificationAdapter: notifications,
+          alertSoundAdapter: alertSounds,
+          hapticAdapter: const StubHapticAdapter(),
+          flashAdapter: const StubFlashAdapter(),
+          focusAdapter: focus,
+          aodAdapter: const StubAODAdapter(),
+          clock: clock,
+        );
+        addTearDown(focusCoordinator.dispose);
+
+        await focusCoordinator.startPomodoro(tagId);
+        await focusCoordinator.onLifecycleBackground();
+        focus.injectViolation();
+        await Future<void>.delayed(Duration.zero);
+
+        expect(notifications.showAlertTitles, ['Focus session failed']);
+        expect(alertSounds.played, isEmpty);
+
+        await focusCoordinator.onLifecycleForeground();
+
+        expect(notifications.showAlertTitles, ['Focus session failed']);
+        expect(alertSounds.played, isEmpty);
+      },
+    );
+
+    test('failed focus-fail OS post plays in-app once on resume', () async {
+      notifications.showSucceeds = false;
+      final focus = ControllableFocusAdapter();
+      addTearDown(focus.dispose);
+      final settings = DriftSettingsRepository(db);
+      await settings.update(
+        const AppSettingsPatch(focusMode: FocusMode.strict),
+      );
+
+      final focusCoordinator = TimerCoordinator(
+        sessionRepository: sessions,
+        tagRepository: DriftTagRepository(db),
+        activeTimerStateRepository: activeState,
+        settingsRepository: settings,
+        notificationAdapter: notifications,
+        alertSoundAdapter: alertSounds,
+        hapticAdapter: const StubHapticAdapter(),
+        flashAdapter: const StubFlashAdapter(),
+        focusAdapter: focus,
+        aodAdapter: const StubAODAdapter(),
+        clock: clock,
+      );
+      addTearDown(focusCoordinator.dispose);
+
+      await focusCoordinator.startPomodoro(tagId);
+      await focusCoordinator.onLifecycleBackground();
+      focus.injectViolation();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(notifications.showAlertTitles, isEmpty);
+      expect(alertSounds.played, isEmpty);
+
+      await focusCoordinator.onLifecycleForeground();
+
+      expect(alertSounds.played, hasLength(1));
+      expect(notifications.showAlertTitles, isEmpty);
     });
 
     test('tick without phase change does not persist (BR-TIMER-025)', () async {
@@ -609,5 +807,175 @@ void main() {
       expect(finalized!.status, SessionStatus.failed);
       expect(focusCoordinator.engine.currentState.phase, EnginePhase.idle);
     });
+
+    Future<void> configureMinimalPomodoroTag() async {
+      final tags = DriftTagRepository(db);
+      final general = await tags.getById(tagId);
+      await tags.update(
+        UpdateTagInput(
+          id: tagId,
+          name: general!.name,
+          color: general.color,
+          pomodoro: const TagModeConfigPomodoro(
+            focusDurationSec: 30,
+            shortBreakDurationSec: 10,
+            longBreakDurationSec: 20,
+            sessionsBeforeLongBreak: 1,
+            totalCycles: 2,
+          ),
+          flexible: TagModeConfigFlexible.defaults(),
+        ),
+      );
+    }
+
+    /// Drive Pomodoro until soft [EnginePhase.sessionComplete].
+    Future<void> runToPomodoroSessionComplete() async {
+      await configureMinimalPomodoroTag();
+      final start = await coordinator.startPomodoro(tagId);
+      expect(start.isOk, isTrue);
+
+      for (var i = 0; i < 40; i++) {
+        final phase = coordinator.engine.currentState.phase;
+        if (phase == EnginePhase.sessionComplete) {
+          return;
+        }
+        if (phase == EnginePhase.running) {
+          final planned =
+              coordinator.engine.currentState.currentSegment!.plannedSec;
+          clock.advanceSeconds(planned);
+          await coordinator.tick();
+          continue;
+        }
+        if (phase == EnginePhase.segmentComplete) {
+          final advanced = await coordinator.advanceSegment();
+          expect(advanced.isOk, isTrue);
+          continue;
+        }
+        fail('unexpected phase while driving Pomodoro: $phase');
+      }
+      fail('timed out waiting for sessionComplete');
+    }
+
+    test(
+      'Pomodoro sessionComplete stays soft: session still active, not completed',
+      () async {
+        await runToPomodoroSessionComplete();
+
+        expect(
+          coordinator.engine.currentState.phase,
+          EnginePhase.sessionComplete,
+        );
+        expect(coordinator.hasActiveSession, isTrue);
+        final active = await sessions.getActiveSession();
+        expect(active, isNotNull);
+        expect(active!.status, SessionStatus.active);
+        expect(coordinator.currentViewState.sessionId, active.id);
+        expect(coordinator.engine.currentState.pomodoroCyclesCompleted, 2);
+        expect(coordinator.engine.currentState.pomodoroCyclesTarget, 2);
+      },
+    );
+
+    test(
+      'continuePomodoro appends same session and grows cycle target',
+      () async {
+        await runToPomodoroSessionComplete();
+        final sessionId = (await sessions.getActiveSession())!.id;
+        final segmentsBefore = (await sessions.getSegmentsBySessionId(
+          sessionId,
+        )).length;
+
+        final cont = await coordinator.continuePomodoro();
+        expect(cont.isOk, isTrue);
+        expect(coordinator.engine.currentState.phase, EnginePhase.running);
+        expect(coordinator.engine.currentState.pomodoroCyclesTarget, 4);
+        expect(coordinator.engine.currentState.pomodoroCyclesCompleted, 2);
+        expect(await sessions.getActiveSession(), isNotNull);
+        expect((await sessions.getActiveSession())!.id, sessionId);
+        final segmentsAfter = (await sessions.getSegmentsBySessionId(
+          sessionId,
+        )).length;
+        expect(segmentsAfter, greaterThan(segmentsBefore));
+      },
+    );
+
+    test(
+      'dismissSessionComplete finalizes; next start is a new session',
+      () async {
+        await runToPomodoroSessionComplete();
+        final sessionId = (await sessions.getActiveSession())!.id;
+
+        final done = await coordinator.dismissSessionComplete();
+        expect(done.isOk, isTrue);
+        expect(coordinator.engine.currentState.phase, EnginePhase.idle);
+        expect(coordinator.hasActiveSession, isFalse);
+        expect(await sessions.getActiveSession(), isNull);
+        expect(await activeState.get(), isNull);
+
+        final finished = await sessions.getById(sessionId);
+        expect(finished!.status, SessionStatus.completed);
+
+        final next = await coordinator.startPomodoro(tagId);
+        expect(next.isOk, isTrue);
+        final newActive = await sessions.getActiveSession();
+        expect(newActive, isNotNull);
+        expect(newActive!.id, isNot(sessionId));
+      },
+    );
+
+    test(
+      'soft sessionComplete persists enginePhase for cold-start recovery',
+      () async {
+        await runToPomodoroSessionComplete();
+
+        final persisted = await activeState.get();
+        expect(persisted, isNotNull);
+        expect(persisted!.enginePhase, EnginePhase.sessionComplete);
+        expect(await sessions.getActiveSession(), isNotNull);
+      },
+    );
+
+    test(
+      'leaving soft sessionComplete (back-equivalent) matches Done finalize',
+      () async {
+        await runToPomodoroSessionComplete();
+        final sessionId = (await sessions.getActiveSession())!.id;
+
+        // System back / navigate away uses the same finalize as Done.
+        final leave = await coordinator.dismissSessionComplete();
+        expect(leave.isOk, isTrue);
+        expect(coordinator.engine.currentState.phase, EnginePhase.idle);
+        expect(await sessions.getActiveSession(), isNull);
+        expect(await activeState.get(), isNull);
+        expect(
+          (await sessions.getById(sessionId))!.status,
+          SessionStatus.completed,
+        );
+      },
+    );
+
+    test(
+      'recovery after soft sessionComplete auto-completes without resume',
+      () async {
+        await runToPomodoroSessionComplete();
+        final sessionId = (await sessions.getActiveSession())!.id;
+        expect(
+          (await activeState.get())!.enginePhase,
+          EnginePhase.sessionComplete,
+        );
+
+        final recovery = SessionRecoveryService(
+          sessionRepository: sessions,
+          activeTimerStateRepository: activeState,
+        );
+        final result = await recovery.check(clock.nowUtc());
+        expect(result, isA<RecoveryCheckAutoCompleted>());
+        expect(await sessions.getActiveSession(), isNull);
+        expect(await activeState.get(), isNull);
+        expect(
+          (await sessions.getById(sessionId))!.status,
+          SessionStatus.completed,
+        );
+      },
+    );
   });
 }

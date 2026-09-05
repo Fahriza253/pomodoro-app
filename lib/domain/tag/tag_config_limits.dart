@@ -22,8 +22,12 @@ class TagConfigLimits {
   static const int totalCyclesMax = 8;
   static const int totalCyclesStep = 2;
 
-  static const int sessionsBeforeLongBreakMin = 1;
+  static const int sessionsBeforeLongBreakMin = 2;
   static const int sessionsBeforeLongBreakMax = 10;
+
+  static const int reminderMinMinutes = 5;
+  static const int reminderMaxMinutes = 180;
+  static const int reminderStepMinutes = 5;
 
   static int minToSec(int minutes) => minutes * 60;
 

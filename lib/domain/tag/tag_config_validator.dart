@@ -75,7 +75,7 @@ class TagConfigValidator {
       issues.add(
         const ValidationIssue(
           field: 'shortBreakDurationSec',
-          message: 'Istirahat pendek harus 2–14 menit (kelipatan 2).',
+          message: 'Istirahat pendek harus 5–15 menit (kelipatan 1).',
         ),
       );
     }
@@ -88,7 +88,7 @@ class TagConfigValidator {
       issues.add(
         const ValidationIssue(
           field: 'longBreakDurationSec',
-          message: 'Istirahat panjang harus 5–30 menit (kelipatan 5).',
+          message: 'Istirahat panjang harus 10–30 menit (kelipatan 1).',
         ),
       );
     }
@@ -100,7 +100,7 @@ class TagConfigValidator {
       issues.add(
         const ValidationIssue(
           field: 'sessionsBeforeLongBreak',
-          message: 'Fokus sebelum istirahat panjang harus 1–10.',
+          message: 'Fokus sebelum istirahat panjang harus 2–10.',
         ),
       );
     }
@@ -126,19 +126,35 @@ class TagConfigValidator {
   ValidationResult validateFlexible(TagModeConfigFlexible config) {
     final issues = <ValidationIssue>[];
 
-    if (config.defaultDurationSec != null && config.defaultDurationSec! <= 0) {
-      issues.add(
-        const ValidationIssue(
-          field: 'defaultDurationSec',
-          message: 'Durasi default harus lebih dari 0.',
-        ),
+    if (config.defaultDurationSec != null) {
+      final defaultMin = TagConfigLimits.secToMinRounded(
+        config.defaultDurationSec!,
       );
+      if (!TagConfigLimits.isOnGrid(
+        defaultMin,
+        min: TagConfigLimits.focusMinMin,
+        max: TagConfigLimits.focusMaxMin,
+        step: TagConfigLimits.focusStepMin,
+      )) {
+        issues.add(
+          const ValidationIssue(
+            field: 'defaultDurationSec',
+            message: 'Durasi default harus 5–180 menit (kelipatan 5).',
+          ),
+        );
+      }
     }
-    if (config.reminderEnabled && (config.reminderIntervalMin <= 0)) {
+    if (config.reminderEnabled &&
+        !TagConfigLimits.isOnGrid(
+          config.reminderIntervalMin,
+          min: TagConfigLimits.reminderMinMinutes,
+          max: TagConfigLimits.reminderMaxMinutes,
+          step: TagConfigLimits.reminderStepMinutes,
+        )) {
       issues.add(
         const ValidationIssue(
           field: 'reminderIntervalMin',
-          message: 'Interval pengingat harus lebih dari 0.',
+          message: 'Interval pengingat harus 5–180 menit (kelipatan 5).',
         ),
       );
     }

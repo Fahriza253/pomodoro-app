@@ -11,7 +11,7 @@ class StubNotificationAdapter implements NotificationAdapter {
   );
 
   @override
-  Future<void> scheduleSegmentEnd({
+  Future<bool> scheduleSegmentEnd({
     required DateTime fireAtUtc,
     required String title,
     required String body,
@@ -19,10 +19,10 @@ class StubNotificationAdapter implements NotificationAdapter {
     required String sessionId,
     required String soundToneId,
     bool playSound = true,
-  }) async {}
+  }) async => false;
 
   @override
-  Future<void> showAlert({
+  Future<bool> showAlert({
     required String title,
     required String body,
     required String sessionId,
@@ -30,15 +30,15 @@ class StubNotificationAdapter implements NotificationAdapter {
     int? notificationId,
     String? deepLinkSource,
     bool playSound = true,
-  }) async {}
+  }) async => false;
 
   @override
-  Future<void> showReminder({
+  Future<bool> showReminder({
     required String title,
     required String body,
     required String sessionId,
     bool playSound = true,
-  }) async {}
+  }) async => false;
 
   @override
   Future<void> showRunningTimer(RunningTimerContent content) async {}

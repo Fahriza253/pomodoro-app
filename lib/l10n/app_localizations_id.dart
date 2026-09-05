@@ -586,11 +586,11 @@ class AppLocalizationsId extends AppLocalizations {
   String get alertTonePreviewHint => 'Ketuk nada untuk mendengarkan pratinjau';
 
   @override
-  String get alertControlsSection => 'Kontrol alert';
+  String get alertControlsSection => 'Kontrol Alert';
 
   @override
   String get alertControlsHint =>
-      'Haptic, suara, dan flash untuk fokus, istirahat, gagal & pengingat';
+      'Getar, suara, dan flash untuk Alert dan Reminder';
 
   @override
   String get alertHaptic => 'Haptic';
@@ -605,7 +605,7 @@ class AppLocalizationsId extends AppLocalizations {
   String get alertFlashUnsupported => 'Flash tidak didukung di perangkat ini';
 
   @override
-  String get alertControlsSheetTitle => 'Kontrol alert';
+  String get alertControlsSheetTitle => 'Kontrol Alert';
 
   @override
   String get muted => 'Bisu';

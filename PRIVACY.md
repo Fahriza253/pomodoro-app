@@ -1,6 +1,6 @@
 # Privacy Policy — Pomodoro App
 
-**Last updated:** 2026-07-18  
+**Last updated:** 2026-08-20  
 **Product:** Pomodoro (offline-first focus timer)  
 **Publisher:** DPZ Studio (`com.dpzstudio.pomodoro_app`)
 
@@ -59,14 +59,6 @@ When configuring a Focus whitelist, the app lists **launchable** apps visible to
 - Precise location
 - Contacts or photos
 - Crash/analytics SDKs that send usage off-device (MVP)
-
-## Children
-
-The app is a general productivity tool and is not directed at children under 13. Do not use it to process children’s personal information.
-
-## Contact
-
-For privacy questions about this app, contact the publisher via the store listing or project repository associated with DPZ Studio / `com.dpzstudio.pomodoro_app`.
 
 ## Changes
 

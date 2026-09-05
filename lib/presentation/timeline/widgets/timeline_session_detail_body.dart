@@ -50,6 +50,17 @@ class TimelineSessionDetailBody extends StatelessWidget {
         const SizedBox(height: 12),
         Text(l10n.totalActive(formatDurationSec(session.totalActiveSec, l10n))),
         Text(l10n.totalPaused(formatDurationSec(session.totalPausedSec, l10n))),
+        if (session.mode == TimerMode.pomodoro &&
+            session.pomodoroCyclesTarget != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            l10n.cycleProgress(
+              session.pomodoroCyclesCompleted,
+              session.pomodoroCyclesTarget!,
+            ),
+            style: theme.textTheme.titleSmall,
+          ),
+        ],
         const SizedBox(height: 16),
         Text(l10n.segments, style: theme.textTheme.titleSmall),
         const SizedBox(height: 8),

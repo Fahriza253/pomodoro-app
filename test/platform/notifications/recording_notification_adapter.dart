@@ -5,9 +5,12 @@ import 'package:pomodoro_app/platform/notifications/running_timer_notification.d
 class RecordingNotificationAdapter implements NotificationAdapter {
   final List<ScheduledSegmentEndCall> scheduledSegmentEnds = [];
   final List<String> showAlertTitles = [];
+  final List<String> showReminderTitles = [];
   final List<RunningTimerContent> showRunningTimers = [];
   int cancelAllCount = 0;
   final List<int> cancelledIds = [];
+  bool scheduleSucceeds = true;
+  bool showSucceeds = true;
 
   @override
   NotificationCapabilities capabilities() => const NotificationCapabilities(
@@ -20,7 +23,7 @@ class RecordingNotificationAdapter implements NotificationAdapter {
   );
 
   @override
-  Future<void> scheduleSegmentEnd({
+  Future<bool> scheduleSegmentEnd({
     required DateTime fireAtUtc,
     required String title,
     required String body,
@@ -29,6 +32,9 @@ class RecordingNotificationAdapter implements NotificationAdapter {
     required String soundToneId,
     bool playSound = true,
   }) async {
+    if (!scheduleSucceeds) {
+      return false;
+    }
     scheduledSegmentEnds.add(
       ScheduledSegmentEndCall(
         fireAtUtc: fireAtUtc,
@@ -40,10 +46,11 @@ class RecordingNotificationAdapter implements NotificationAdapter {
         playSound: playSound,
       ),
     );
+    return true;
   }
 
   @override
-  Future<void> showAlert({
+  Future<bool> showAlert({
     required String title,
     required String body,
     required String sessionId,
@@ -52,16 +59,26 @@ class RecordingNotificationAdapter implements NotificationAdapter {
     String? deepLinkSource,
     bool playSound = true,
   }) async {
+    if (!showSucceeds) {
+      return false;
+    }
     showAlertTitles.add(title);
+    return true;
   }
 
   @override
-  Future<void> showReminder({
+  Future<bool> showReminder({
     required String title,
     required String body,
     required String sessionId,
     bool playSound = true,
-  }) async {}
+  }) async {
+    if (!showSucceeds) {
+      return false;
+    }
+    showReminderTitles.add(title);
+    return true;
+  }
 
   @override
   Future<void> showRunningTimer(RunningTimerContent content) async {

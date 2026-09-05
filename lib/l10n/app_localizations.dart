@@ -1163,13 +1163,13 @@ abstract class AppLocalizations {
   /// No description provided for @alertControlsSection.
   ///
   /// In en, this message translates to:
-  /// **'Alert controls'**
+  /// **'Alert Controls'**
   String get alertControlsSection;
 
   /// No description provided for @alertControlsHint.
   ///
   /// In en, this message translates to:
-  /// **'Haptic, sound, and flash for focus, breaks, failure & reminders'**
+  /// **'Haptic, sound, and flash for Alerts and Reminders'**
   String get alertControlsHint;
 
   /// No description provided for @alertHaptic.
@@ -1199,7 +1199,7 @@ abstract class AppLocalizations {
   /// No description provided for @alertControlsSheetTitle.
   ///
   /// In en, this message translates to:
-  /// **'Alert controls'**
+  /// **'Alert Controls'**
   String get alertControlsSheetTitle;
 
   /// No description provided for @muted.

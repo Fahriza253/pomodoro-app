@@ -1,10 +1,13 @@
 import 'dart:async';
 
-import 'package:pomodoro_app/application/timer/alert_modality.dart';
 import 'package:pomodoro_app/application/timer/config_snapshot_factory.dart';
+import 'package:pomodoro_app/application/timer/lifecycle_result.dart';
 import 'package:pomodoro_app/application/timer/notification_strings.dart';
+import 'package:pomodoro_app/application/timer/segment_end_cycle_progress.dart';
 import 'package:pomodoro_app/application/timer/persist_reason.dart';
-import 'package:pomodoro_app/application/timer/segment_end_copy.dart';
+import 'package:pomodoro_app/application/timer/session_lifecycle.dart';
+import 'package:pomodoro_app/application/timer/side_effect_context.dart';
+import 'package:pomodoro_app/application/timer/timer_side_effect_hub.dart';
 import 'package:pomodoro_app/application/timer/timer_state_builder.dart';
 import 'package:pomodoro_app/application/timer/timer_view_state.dart';
 import 'package:pomodoro_app/data/repositories/active_timer_state_repository.dart';
@@ -14,15 +17,11 @@ import 'package:pomodoro_app/data/repositories/tag_repository.dart';
 import 'package:pomodoro_app/domain/common/app_error.dart';
 import 'package:pomodoro_app/domain/common/enums.dart';
 import 'package:pomodoro_app/domain/common/result.dart';
-import 'package:pomodoro_app/domain/session/session_inputs.dart';
 import 'package:pomodoro_app/domain/settings/app_settings.dart';
-import 'package:pomodoro_app/domain/tag/config_snapshot.dart';
 import 'package:pomodoro_app/domain/timer/active_timer_state.dart';
-import 'package:pomodoro_app/domain/timer/models/segment_plan.dart';
-import 'package:pomodoro_app/domain/timer/models/session_plan.dart';
+import 'package:pomodoro_app/domain/timer/early_stop_grace.dart';
 import 'package:pomodoro_app/domain/timer/models/timer_engine_state.dart';
 import 'package:pomodoro_app/domain/timer/segment_planner.dart';
-import 'package:pomodoro_app/domain/timer/early_stop_grace.dart';
 import 'package:pomodoro_app/domain/timer/timer_engine.dart';
 import 'package:pomodoro_app/domain/timer/timer_transition_error.dart';
 import 'package:pomodoro_app/platform/aod/aod_adapter.dart';
@@ -32,65 +31,71 @@ import 'package:pomodoro_app/platform/flash/flash_adapter.dart';
 import 'package:pomodoro_app/platform/focus/focus_adapter.dart';
 import 'package:pomodoro_app/platform/haptic/haptic_adapter.dart';
 import 'package:pomodoro_app/platform/notifications/notification_adapter.dart';
-import 'package:pomodoro_app/platform/notifications/notification_deep_link.dart';
-import 'package:pomodoro_app/platform/notifications/running_timer_notification.dart';
 import 'package:uuid/uuid.dart';
 
-/// Orchestrates timer engine, persistence, and platform side effects (UC-01/02/04).
+/// Thin facade: view-state, recovery prompts, and Lifecycle → Hub order.
 class TimerCoordinator {
   TimerCoordinator({
-    required this._sessionRepository,
-    required this._tagRepository,
-    required this._activeTimerStateRepository,
-    required this._settingsRepository,
-    required this._notificationAdapter,
-    required this._alertSoundAdapter,
-    required this._hapticAdapter,
-    required this._flashAdapter,
-    required this._focusAdapter,
-    required this._aodAdapter,
-    required this._clock,
+    required SessionRepository sessionRepository,
+    required TagRepository tagRepository,
+    required ActiveTimerStateRepository activeTimerStateRepository,
+    required SettingsRepository settingsRepository,
+    required NotificationAdapter notificationAdapter,
+    required AlertSoundAdapter alertSoundAdapter,
+    required HapticAdapter hapticAdapter,
+    required FlashAdapter flashAdapter,
+    required FocusAdapter focusAdapter,
+    required AODAdapter aodAdapter,
+    required ClockAdapter clock,
     TimerEngine? engine,
     SegmentPlanner? planner,
     ConfigSnapshotFactory? configSnapshotFactory,
     TimerStateBuilder? stateBuilder,
     Uuid? uuid,
-  }) : _engine = engine ?? TimerEngine(planner: planner),
-       _planner = planner ?? const SegmentPlanner(),
-       _configSnapshotFactory =
-           configSnapshotFactory ?? const ConfigSnapshotFactory(),
-       _stateBuilder = stateBuilder ?? const TimerStateBuilder(),
-       _uuid = uuid ?? const Uuid() {
+    SessionLifecycle? sessionLifecycle,
+    TimerSideEffectHub? sideEffectHub,
+  }) : _lifecycle =
+           sessionLifecycle ??
+           SessionLifecycle(
+             sessionRepository: sessionRepository,
+             tagRepository: tagRepository,
+             activeTimerStateRepository: activeTimerStateRepository,
+             clock: clock,
+             engine: engine,
+             planner: planner,
+             configSnapshotFactory: configSnapshotFactory,
+             stateBuilder: stateBuilder,
+             uuid: uuid,
+           ),
+       _settingsRepository = settingsRepository,
+       _focusAdapter = focusAdapter,
+       _clock = clock,
+       _hub =
+           sideEffectHub ??
+           TimerSideEffectHub(
+             settingsRepository: settingsRepository,
+             notificationAdapter: notificationAdapter,
+             alertSoundAdapter: alertSoundAdapter,
+             hapticAdapter: hapticAdapter,
+             flashAdapter: flashAdapter,
+             focusAdapter: focusAdapter,
+             aodAdapter: aodAdapter,
+           ) {
     _focusSubscription = _focusAdapter.watchViolations().listen((_) {
       unawaited(_handleFocusViolation());
     });
     _emitViewState();
   }
 
-  final SessionRepository _sessionRepository;
-  final TagRepository _tagRepository;
-  final ActiveTimerStateRepository _activeTimerStateRepository;
+  final SessionLifecycle _lifecycle;
   final SettingsRepository _settingsRepository;
-  final NotificationAdapter _notificationAdapter;
-  final AlertSoundAdapter _alertSoundAdapter;
-  final HapticAdapter _hapticAdapter;
-  final FlashAdapter _flashAdapter;
   final FocusAdapter _focusAdapter;
-  final AODAdapter _aodAdapter;
   final ClockAdapter _clock;
-  final TimerEngine _engine;
-  final SegmentPlanner _planner;
-  final ConfigSnapshotFactory _configSnapshotFactory;
-  final TimerStateBuilder _stateBuilder;
-  final Uuid _uuid;
+  final TimerSideEffectHub _hub;
 
   final _viewStateController = StreamController<TimerViewState>.broadcast();
   late final StreamSubscription<FocusViolation> _focusSubscription;
 
-  String? _sessionId;
-  String? _tagId;
-  String? _tagName;
-  List<String> _segmentIds = const [];
   ActiveTimerState? _pendingRecovery;
   bool _showRecoveryPrompt = false;
 
@@ -100,18 +105,11 @@ class TimerCoordinator {
   /// Set when user opens the app from a segment-end push; consumed once.
   bool _suppressNextSegmentAlert = false;
 
-  /// Notification id for scheduled wall-clock segment-end.
-  int get _scheduledSegmentEndNotificationId => _sessionId!.hashCode;
-
-  /// Notification id for immediate segment-end tray alerts (legacy / rare).
-  int get _immediateSegmentEndNotificationId =>
-      _sessionId!.hashCode ^ 0x454E44; // 'END'
-
   Stream<TimerViewState> get viewState => _viewStateController.stream;
   TimerViewState get currentViewState => _buildViewState();
-  TimerEngine get engine => _engine;
+  TimerEngine get engine => _lifecycle.engine;
 
-  bool get hasActiveSession => _sessionId != null;
+  bool get hasActiveSession => _lifecycle.hasActiveSession;
 
   /// Call when the user opens the app via a segment-end notification tap
   /// so the subsequent foreground [tick] does not replay the alert in-app.
@@ -132,57 +130,25 @@ class TimerCoordinator {
   }
 
   Future<AppResult<void>> startPomodoro(String tagId) => _runAsync(() async {
-    await _guardNoActiveSession();
-    final tagWithConfigs = await _tagRepository.getWithConfigs(tagId);
-    final snapshot = _configSnapshotFactory.fromTagModeConfig(
-      tagWithConfigs.pomodoro,
-    );
-    final segments = _planner.buildBlockPlan(snapshot);
-    final plan = SessionPlan(
-      config: snapshot,
-      segments: segments,
-      cyclesTarget: snapshot.totalCycles!,
-    );
-    await _startSession(
-      tagId: tagId,
-      tagName: tagWithConfigs.tag.name,
-      mode: TimerMode.pomodoro,
-      snapshot: snapshot,
-      segments: segments,
-      cyclesTarget: snapshot.totalCycles,
-      startEngine: (now) => _engine.startPomodoro(plan, now),
-    );
+    final result = await _lifecycle.startPomodoro(tagId);
+    await _syncSideEffects(result);
+    _emitViewState();
   });
 
   Future<AppResult<void>> startFlexible(String tagId) => _runAsync(() async {
-    await _guardNoActiveSession();
-    final tagWithConfigs = await _tagRepository.getWithConfigs(tagId);
-    final snapshot = _configSnapshotFactory.fromTagModeConfig(
-      tagWithConfigs.flexible,
-    );
-    final segment = _planner.buildFlexibleSegment(snapshot);
-    await _startSession(
-      tagId: tagId,
-      tagName: tagWithConfigs.tag.name,
-      mode: TimerMode.flexible,
-      snapshot: snapshot,
-      segments: [segment],
-      cyclesTarget: null,
-      startEngine: (now) => _engine.startFlexible(snapshot, now),
-    );
+    final result = await _lifecycle.startFlexible(tagId);
+    await _syncSideEffects(result);
+    _emitViewState();
   });
 
   Future<AppResult<void>> pause() => _runAsync(() async {
-    final before = _engine.currentState;
-    _engine.pause(_clock.nowUtc());
-    await _onEngineTransition(before, PersistReason.pause);
+    final result = await _lifecycle.pause();
+    await _afterTransition(result);
   });
 
   Future<AppResult<void>> resume() => _runAsync(() async {
-    final before = _engine.currentState;
-    _engine.resume(_clock.nowUtc());
-    _engine.tick(_clock.nowUtc());
-    await _onEngineTransition(before, PersistReason.resume);
+    final result = await _lifecycle.resume();
+    await _afterTransition(result);
   });
 
   Future<AppResult<void>> stop({required bool confirmed}) async {
@@ -195,255 +161,109 @@ class TimerCoordinator {
       );
     }
     return _runAsync(() async {
-      await _guardActiveSession();
-      final activeSec = _computeTotalActiveSec(_engine.currentState);
-      if (isWithinEarlyStopGrace(activeSec)) {
-        // BR-TIMER-026: discard — no abandoned row, no failure tone.
-        await _discardActiveSession();
-        _engine.confirmStop();
+      final result = await _lifecycle.stop();
+      if (result.sessionId == null) {
+        await _hub.onIdle();
         _emitViewState();
         return;
       }
       // Stop is always a foreground action — in-app tone only (OS notification
       // would also play sound and cause a double alert).
-      final copy = await _notificationCopy();
-      await _playFailureAlert(
+      final settings = await _settingsRepository.get();
+      final copy = NotificationStrings.forLanguage(settings.language);
+      await _hub.onFocusFailed(
+        _sideEffectContext(result: result),
         title: copy.sessionStoppedTitle,
         body: copy.sessionStoppedBody,
         osNotification: false,
       );
-      await _finalizeActiveSession(SessionStatus.abandoned);
-      _engine.confirmStop();
+      _emitViewState();
     });
   }
 
   Future<AppResult<void>> skipBreak() => _runAsync(() async {
-    final before = _engine.currentState;
-    _engine.skipBreak(_clock.nowUtc());
-    await _onEngineTransition(before, PersistReason.segmentTransition);
+    final result = await _lifecycle.skipBreak();
+    await _afterTransition(result);
   });
 
   Future<AppResult<void>> advanceSegment() => _runAsync(() async {
-    final before = _engine.currentState;
-    _engine.advanceFromSegmentComplete(_clock.nowUtc());
-    await _onEngineTransition(before, PersistReason.segmentTransition);
+    final result = await _lifecycle.advanceSegment();
+    await _afterTransition(result);
   });
 
   Future<AppResult<void>> completePomodoro() => dismissSessionComplete();
 
   Future<AppResult<void>> continuePomodoro() => _runAsync(() async {
-    await _guardActiveSession();
-    final before = _engine.currentState;
-    _engine.continuePomodoro(_clock.nowUtc());
-    final after = _engine.currentState;
-    final newSegments = after.segments.skip(before.segments.length).toList();
-    final newInputs = newSegments.map((plan) {
-      return CreateSegmentInput(
-        id: _uuid.v4(),
-        type: plan.type,
-        orderIndex: plan.orderIndex,
-        plannedSec: plan.plannedSec,
-      );
-    }).toList();
-    _segmentIds = [..._segmentIds, ...newInputs.map((s) => s.id)];
-    await _sessionRepository.appendSegments(
-      _sessionId!,
-      newInputs,
-      pomodoroCyclesTarget: after.pomodoroCyclesTarget,
-    );
-    await _markCurrentSegmentStarted();
-    await _onEngineTransition(before, PersistReason.segmentTransition);
+    final result = await _lifecycle.continuePomodoro();
+    await _afterTransition(result);
   });
 
   Future<AppResult<void>> completeFlexible() => _runAsync(() async {
-    await _guardActiveSession();
-    final before = _engine.currentState;
-    if (!before.isFlexible) {
-      throw TimerTransitionError('completeFlexible requires flexible mode');
-    }
-    if (before.phase == EnginePhase.paused) {
-      _engine.resume(_clock.nowUtc());
-    }
-    _engine.completeFlexible(_clock.nowUtc());
-    await _onEngineTransition(before, PersistReason.segmentTransition);
+    final result = await _lifecycle.completeFlexible();
+    await _afterTransition(result);
   });
 
   Future<AppResult<void>> dismissSessionComplete() => _runAsync(() async {
-    if (_engine.currentState.phase == EnginePhase.idle) {
-      _emitViewState();
-      return;
+    final result = await _lifecycle.dismissSessionComplete();
+    if (result.before.phase != EnginePhase.idle) {
+      await _hub.onIdle();
     }
-    _requirePhase(EnginePhase.sessionComplete);
-    if (_sessionId != null) {
-      await _finalizeActiveSession(SessionStatus.completed);
-    }
-    _engine.dismissSessionComplete();
-    _engine.resetAfterTerminalHandled();
-    _clearSessionContext();
-    await _syncPlatformAdapters();
     _emitViewState();
   });
 
   /// After auto-saved session complete: start a new session with the same tag.
   Future<AppResult<void>> restartSameTag() => _runAsync(() async {
-    final tagId = _tagId;
-    final mode = _engine.currentState.mode;
-    if (tagId == null || mode == null) {
-      throw const ConflictError(
-        code: 'TIMER_NO_ACTIVE_SESSION',
-        message: 'Tidak ada tag untuk memulai ulang.',
-      );
+    if (_lifecycle.sessionId != null) {
+      await _hub.onIdle();
     }
-    _requirePhase(EnginePhase.sessionComplete);
-    if (_sessionId != null) {
-      await _cancelSegmentEndNotifications();
-      await _writeTerminalSession(SessionStatus.completed);
-      await _activeTimerStateRepository.delete();
-      _sessionId = null;
-      _segmentIds = const [];
-    }
-    _engine.dismissSessionComplete();
-    _engine.resetAfterTerminalHandled();
-
-    final tagWithConfigs = await _tagRepository.getWithConfigs(tagId);
-    if (mode == TimerMode.pomodoro) {
-      final snapshot = _configSnapshotFactory.fromTagModeConfig(
-        tagWithConfigs.pomodoro,
-      );
-      final segments = _planner.buildBlockPlan(snapshot);
-      final plan = SessionPlan(
-        config: snapshot,
-        segments: segments,
-        cyclesTarget: snapshot.totalCycles!,
-      );
-      await _startSession(
-        tagId: tagId,
-        tagName: tagWithConfigs.tag.name,
-        mode: TimerMode.pomodoro,
-        snapshot: snapshot,
-        segments: segments,
-        cyclesTarget: snapshot.totalCycles,
-        startEngine: (now) => _engine.startPomodoro(plan, now),
-      );
-    } else {
-      final snapshot = _configSnapshotFactory.fromTagModeConfig(
-        tagWithConfigs.flexible,
-      );
-      final segment = _planner.buildFlexibleSegment(snapshot);
-      await _startSession(
-        tagId: tagId,
-        tagName: tagWithConfigs.tag.name,
-        mode: TimerMode.flexible,
-        snapshot: snapshot,
-        segments: [segment],
-        cyclesTarget: null,
-        startEngine: (now) => _engine.startFlexible(snapshot, now),
-      );
-    }
+    final result = await _lifecycle.restartSameTag();
+    await _syncSideEffects(result);
+    _emitViewState();
   });
 
   Future<AppResult<void>> resumeFromPersisted() => _runAsync(() async {
-    final persisted =
-        _pendingRecovery ?? await _activeTimerStateRepository.get();
-    if (persisted == null) {
-      throw const ConflictError(
-        code: 'TIMER_NO_ACTIVE_SESSION',
-        message: 'Tidak ada sesi untuk dipulihkan.',
-      );
-    }
-    final session = await _sessionRepository.getById(persisted.sessionId);
-    if (session == null || session.status != SessionStatus.active) {
-      throw const ConflictError(
-        code: 'TIMER_NO_ACTIVE_SESSION',
-        message: 'Tidak ada sesi aktif.',
-      );
-    }
-    final dbSegments = await _sessionRepository.getSegmentsBySessionId(
-      session.id,
+    final result = await _lifecycle.resumeFromPersisted(
+      pending: _pendingRecovery,
     );
-    final tag = await _tagRepository.getById(session.tagId);
-
-    _sessionId = session.id;
-    _tagId = session.tagId;
-    _tagName = tag?.name;
-    _segmentIds = _stateBuilder.segmentIdsFromDb(dbSegments);
-
-    final rebuilt = _stateBuilder.fromPersisted(
-      session: session,
-      dbSegments: dbSegments,
-      persisted: persisted,
-    );
-    _engine.restoreFromPersisted(rebuilt, _clock.nowUtc());
     clearRecoveryPrompt();
-    await persistActiveState(PersistReason.sessionStart);
-    await _syncPlatformAdapters();
+    await _syncSideEffects(result);
   });
 
   Future<AppResult<void>> declineRecovery() => _runAsync(() async {
-    final persisted =
-        _pendingRecovery ?? await _activeTimerStateRepository.get();
-    if (persisted != null) {
-      await _sessionRepository.markAbandoned(
-        persisted.sessionId,
-        _clock.nowUtc(),
-      );
-      await _activeTimerStateRepository.delete();
-    }
+    await _lifecycle.declineRecovery(pending: _pendingRecovery);
     clearRecoveryPrompt();
-    _clearSessionContext();
-    await _syncPlatformAdapters();
+    await _hub.onIdle();
   });
 
-  /// Foreground tick — MUST NOT persist (BR-TIMER-025).
+  /// Foreground tick — persist only on phase/index change (BR-TIMER-025).
   Future<void> tick() async {
-    final before = _engine.currentState;
-    _engine.tick(_clock.nowUtc());
-    final after = _engine.currentState;
+    final result = await _lifecycle.tick();
     _emitViewState();
 
-    if (before.phase != after.phase ||
-        before.currentSegmentIndex != after.currentSegmentIndex) {
-      await _onEngineTransition(before, PersistReason.segmentTransition);
+    if (result.before.phase != result.after.phase ||
+        result.before.currentSegmentIndex != result.after.currentSegmentIndex) {
+      await _afterTransition(result);
     } else {
-      _maybeFireFlexibleReminder(after);
+      _maybeFireFlexibleReminder(result.after);
     }
   }
 
-  Future<void> persistActiveState(PersistReason reason) async {
-    final state = _engine.currentState;
-    if (_sessionId == null || !_shouldPersistPhase(state.phase)) {
-      return;
-    }
-    final nowMs = _clock.nowUtc().millisecondsSinceEpoch;
-    await _activeTimerStateRepository.upsert(
-      ActiveTimerState(
-        sessionId: _sessionId!,
-        enginePhase: state.phase,
-        currentSegmentId: _currentSegmentId(),
-        segmentStartedAtUtcMs:
-            state.segmentStartedAtUtc?.millisecondsSinceEpoch ?? nowMs,
-        flexibleReminderActiveSec: state.flexibleReminderActiveSec,
-        lastPersistedAtUtcMs: nowMs,
-        pauseStartedAtUtcMs: state.pauseStartedAtUtc?.millisecondsSinceEpoch,
-        frozenRemainingSec: state.phase == EnginePhase.paused
-            ? state.frozenRemainingSec
-            : null,
-      ),
-    );
-  }
+  Future<void> persistActiveState(PersistReason reason) =>
+      _lifecycle.persistActiveState(reason);
 
   Future<void> onLifecycleBackground() async {
     _isInForeground = false;
-    await persistActiveState(PersistReason.lifecycleFlush);
+    await _lifecycle.persistActiveState(PersistReason.lifecycleFlush);
     // Re-schedule before Dart suspends — OS must deliver segment-end on iOS
     // while the user is in another app (BR-TIMER-020).
-    await _scheduleSegmentNotification();
-    await _syncRunningTimerNotification();
+    await _hub.onLifecycleBackground(
+      _currentSideEffectContext(after: _lifecycle.currentState),
+    );
   }
 
   Future<void> onLifecycleForeground() async {
     _isInForeground = true;
-    await _notificationAdapter.cancel(kRunningTimerNotificationId);
+    await _hub.onLifecycleForeground(_currentSideEffectContext());
     // Notification-tap callbacks often land in the same resume turn; yield so
     // [suppressNextSegmentAlert] can run before we replay the segment alert.
     // ponytail: 1-frame yield; if OEM delivers tap after this, deep-link path
@@ -456,468 +276,66 @@ class TimerCoordinator {
     _focusSubscription.cancel();
     // AlertSoundAdapter lifecycle is owned by Riverpod provider — do not dispose here.
     _viewStateController.close();
-    _engine.dispose();
+    _lifecycle.dispose();
   }
 
-  // --- internals ---
-
-  Future<void> _startSession({
-    required String tagId,
-    required String tagName,
-    required TimerMode mode,
-    required ConfigSnapshot snapshot,
-    required List<SegmentPlan> segments,
-    required int? cyclesTarget,
-    required void Function(DateTime now) startEngine,
-  }) async {
-    final now = _clock.nowUtc();
-    final nowMs = now.millisecondsSinceEpoch;
-    final sessionId = _uuid.v4();
-    final segmentIds = List<String>.generate(
-      segments.length,
-      (_) => _uuid.v4(),
-    );
-
-    final segmentInputs = <CreateSegmentInput>[];
-    for (var i = 0; i < segments.length; i++) {
-      final plan = segments[i];
-      segmentInputs.add(
-        CreateSegmentInput(
-          id: segmentIds[i],
-          type: plan.type,
-          orderIndex: plan.orderIndex,
-          plannedSec: plan.plannedSec,
-          segmentStatus: i == 0 ? SegmentStatus.active : SegmentStatus.pending,
-          startedAtUtcMs: i == 0 ? nowMs : null,
-        ),
-      );
-    }
-
-    await _sessionRepository.createSession(
-      CreateSessionInput(
-        id: sessionId,
-        tagId: tagId,
-        mode: mode,
-        configSnapshot: snapshot,
-        startedAtUtcMs: nowMs,
-        timelineDate: _localTimelineDate(now),
-        segments: segmentInputs,
-        pomodoroCyclesTarget: cyclesTarget,
-      ),
-    );
-
-    _sessionId = sessionId;
-    _tagId = tagId;
-    _tagName = tagName;
-    _segmentIds = segmentIds;
-
-    startEngine(now);
-
-    await persistActiveState(PersistReason.sessionStart);
-    await _syncPlatformAdapters();
-    _emitViewState();
-  }
-
-  Future<void> _onEngineTransition(
-    TimerEngineState before,
-    PersistReason reason,
-  ) async {
-    final after = _engine.currentState;
-    if (_sessionId != null &&
-        (before.currentSegmentIndex != after.currentSegmentIndex ||
-            before.phase != after.phase)) {
-      await _syncSegmentProgress(before, after);
-    }
-
+  Future<void> _afterTransition(LifecycleResult result) async {
     final enteredSessionComplete =
-        after.phase == EnginePhase.sessionComplete &&
-        before.phase != EnginePhase.sessionComplete &&
-        _sessionId != null;
+        result.after.phase == EnginePhase.sessionComplete &&
+        result.before.phase != EnginePhase.sessionComplete &&
+        result.sessionId != null;
 
-    if (enteredSessionComplete) {
-      // Alert before clearing session id (tray payload needs it).
-      await _maybePlaySegmentAlert(before, after);
-      await _persistCompletedSessionKeepUi();
-    } else {
-      await persistActiveState(reason);
-      await _maybePlaySegmentAlert(before, after);
+    await _runSegmentSideEffects(result);
+    if (enteredSessionComplete && !result.after.isPomodoro) {
+      // Flexible: auto-finalize completed while keeping tag UI context.
+      // Pomodoro stays soft-complete until Done / continue (ticket 02).
+      await _lifecycle.persistCompletedKeepUi();
     }
 
-    await _syncPlatformAdapters();
-    // Mid-background pause/resume/segment: refresh tray chronometer / Live Activity
-    // while the process is still awake (no periodic isolate ticks).
-    if (!_isInForeground) {
-      await _syncRunningTimerNotification();
-    }
     _emitViewState();
-    _maybeFireFlexibleReminder(after);
+    _maybeFireFlexibleReminder(result.after);
   }
 
-  /// Show or hide the ongoing running-timer OS surface (notification / Live Activity).
-  Future<void> _syncRunningTimerNotification() async {
-    final sessionId = _sessionId;
-    if (sessionId == null) {
-      await _notificationAdapter.cancel(kRunningTimerNotificationId);
-      return;
-    }
-    final copy = await _notificationCopy();
-    final content = buildRunningTimerContent(
-      state: _engine.currentState,
-      sessionId: sessionId,
-      nowUtc: _clock.nowUtc(),
-      focusingTitle: copy.focusing,
-      restingTitle: copy.resting,
+  Future<void> _runSegmentSideEffects(LifecycleResult result) async {
+    final consumed = await _hub.onSegmentTransition(
+      _sideEffectContext(result: result),
     );
-    if (content == null) {
-      await _notificationAdapter.cancel(kRunningTimerNotificationId);
-    } else {
-      await _notificationAdapter.showRunningTimer(content);
-    }
-  }
-
-  Future<void> _maybePlaySegmentAlert(
-    TimerEngineState before,
-    TimerEngineState after,
-  ) async {
-    final completedPrompt =
-        after.phase == EnginePhase.segmentComplete ||
-        after.phase == EnginePhase.sessionComplete;
-    final autoAdvanced =
-        before.phase == EnginePhase.running &&
-        after.phase == EnginePhase.running &&
-        before.currentSegmentIndex != after.currentSegmentIndex;
-    if ((!completedPrompt && !autoAdvanced) ||
-        before.phase != EnginePhase.running) {
-      return;
-    }
-    final segment = before.currentSegment;
-    if (segment == null || _sessionId == null) {
-      return;
-    }
-
-    final settings = await _settingsRepository.get();
-    final isFocusLike =
-        segment.type == SegmentType.focus ||
-        segment.type == SegmentType.flexible;
-    if (!isFocusLike && !segment.isRest) {
-      return;
-    }
-
-    final soundToneId = isFocusLike
-        ? settings.alertToneFocusSuccess
-        : settings.alertToneBreakOver;
-
-    // Always drop pending wall-clock / immediate segment alerts so they
-    // cannot double-fire after we handle the transition in-process.
-    await _cancelSegmentEndNotifications();
-
-    // User already heard the OS push and opened the app from it.
-    if (_suppressNextSegmentAlert) {
+    if (consumed) {
       _suppressNextSegmentAlert = false;
-      return;
     }
+  }
 
-    // Foreground: in-app modalities only. OS showAlert would overlap sound.
-    if (_isInForeground) {
-      await _applyAlertModalities(settings, soundToneId: soundToneId);
-      return;
-    }
+  Future<void> _syncSideEffects(LifecycleResult result) async {
+    await _hub.onSegmentTransition(_sideEffectContext(result: result));
+  }
 
-    // Background edge path (rare — tick while not foreground): tray only.
-    final copy = NotificationStrings.forLanguage(settings.language);
-    final endCopy = _segmentEndCopyForTransition(
+  SideEffectContext _sideEffectContext({required LifecycleResult result}) {
+    return SideEffectContext(
+      sessionId: result.sessionId,
+      before: result.before,
+      after: result.after,
+      isForeground: _isInForeground,
+      suppressNextSegmentAlert: _suppressNextSegmentAlert,
+      nowUtc: _clock.nowUtc(),
+    );
+  }
+
+  SideEffectContext _currentSideEffectContext({
+    TimerEngineState? before,
+    TimerEngineState? after,
+  }) {
+    return SideEffectContext(
+      sessionId: _lifecycle.sessionId,
       before: before,
-      after: after,
-      strings: copy,
-    );
-    final plan = _planFor(settings);
-    await _notificationAdapter.showAlert(
-      title: endCopy.title,
-      body: endCopy.body,
-      sessionId: _sessionId!,
-      soundToneId: soundToneId,
-      notificationId: _immediateSegmentEndNotificationId,
-      deepLinkSource: NotificationDeepLink.sourceSegmentEnd,
-      playSound: plan.osNotificationPlaySound,
-    );
-    await _applyAlertModalities(settings, soundToneId: null);
-  }
-
-  AlertModalityPlan _planFor(AppSettings settings) {
-    return planAlertModalities(
-      foreground: _isInForeground,
-      soundMuted: settings.alertSoundMuted,
-      hapticEnabled: settings.alertHapticEnabled,
-      flashEnabled: settings.alertFlashEnabled,
-      flashCapable: _flashAdapter.capabilities().supported,
-    );
-  }
-
-  /// Applies haptic/flash and optional in-app tone per [planAlertModalities].
-  Future<void> _applyAlertModalities(
-    AppSettings settings, {
-    required String? soundToneId,
-  }) async {
-    final plan = _planFor(settings);
-    if (plan.playInAppSound && soundToneId != null) {
-      await _alertSoundAdapter.play(soundToneId);
-    }
-    if (plan.triggerHaptic) {
-      await _hapticAdapter.pulse();
-    }
-    if (plan.triggerFlash) {
-      await _flashAdapter.pulse();
-    }
-  }
-
-  Future<void> _cancelSegmentEndNotifications() async {
-    if (_sessionId == null) {
-      return;
-    }
-    await _notificationAdapter.cancel(_scheduledSegmentEndNotificationId);
-    await _notificationAdapter.cancel(_immediateSegmentEndNotificationId);
-  }
-
-  Future<void> _syncSegmentProgress(
-    TimerEngineState before,
-    TimerEngineState after,
-  ) async {
-    final nowMs = _clock.nowUtc().millisecondsSinceEpoch;
-    final from = before.currentSegmentIndex;
-    final to = after.currentSegmentIndex;
-
-    if (from >= 0 && from < _segmentIds.length && from != to) {
-      final completedId = _segmentIds[from];
-      final segment = before.currentSegment;
-      final actualSec = segment?.type == SegmentType.flexible
-          ? before.elapsedActiveSecAt(_clock.nowUtc())
-          : segment?.plannedSec ?? 0;
-      await _sessionRepository.updateSegmentProgress(
-        UpdateSegmentInput(
-          sessionId: _sessionId!,
-          segmentId: completedId,
-          segmentStatus: SegmentStatus.completed,
-          actualSec: actualSec,
-          segmentPausedSec: before.segmentPausedSec,
-          endedAtUtcMs: nowMs,
-          pomodoroFocusCount: after.pomodoroFocusCount,
-          pomodoroCyclesCompleted: after.pomodoroCyclesCompleted,
-          totalActiveSec: _computeTotalActiveSec(after),
-          totalPausedSec: _computeTotalPausedSec(after),
-          updatedAtUtcMs: nowMs,
-        ),
-      );
-
-      // Pending rest skipped from post-focus prompt: mark jumped rests
-      // as skipped / actualSec=0 (BR-TIMER-004). Includes sessionComplete
-      // landing on the skipped long_rest itself.
-      final skipEndExclusive =
-          after.phase == EnginePhase.sessionComplete &&
-              after.currentSegment?.isRest == true
-          ? to + 1
-          : to;
-      for (var i = from + 1; i < skipEndExclusive; i++) {
-        if (i < 0 || i >= _segmentIds.length || i >= before.segments.length) {
-          break;
-        }
-        if (!before.segments[i].isRest) {
-          continue;
-        }
-        await _sessionRepository.updateSegmentProgress(
-          UpdateSegmentInput(
-            sessionId: _sessionId!,
-            segmentId: _segmentIds[i],
-            segmentStatus: SegmentStatus.skipped,
-            actualSec: 0,
-            endedAtUtcMs: nowMs,
-            pomodoroFocusCount: after.pomodoroFocusCount,
-            pomodoroCyclesCompleted: after.pomodoroCyclesCompleted,
-            totalActiveSec: _computeTotalActiveSec(after),
-            totalPausedSec: _computeTotalPausedSec(after),
-            updatedAtUtcMs: nowMs,
-          ),
-        );
-      }
-    } else if (after.phase == EnginePhase.sessionComplete &&
-        before.phase != EnginePhase.sessionComplete &&
-        from == to &&
-        from >= 0 &&
-        from < _segmentIds.length) {
-      // Last segment completed without advancing index (typical final rest).
-      final segment = before.currentSegment;
-      final actualSec = segment?.type == SegmentType.flexible
-          ? before.elapsedActiveSecAt(_clock.nowUtc())
-          : segment?.plannedSec ?? 0;
-      await _sessionRepository.updateSegmentProgress(
-        UpdateSegmentInput(
-          sessionId: _sessionId!,
-          segmentId: _segmentIds[from],
-          segmentStatus: SegmentStatus.completed,
-          actualSec: actualSec,
-          segmentPausedSec: before.segmentPausedSec,
-          endedAtUtcMs: nowMs,
-          pomodoroFocusCount: after.pomodoroFocusCount,
-          pomodoroCyclesCompleted: after.pomodoroCyclesCompleted,
-          totalActiveSec: _computeTotalActiveSec(after),
-          totalPausedSec: _computeTotalPausedSec(after),
-          updatedAtUtcMs: nowMs,
-        ),
-      );
-    }
-
-    if (after.phase == EnginePhase.running &&
-        to >= 0 &&
-        to < _segmentIds.length &&
-        from != to) {
-      await _markCurrentSegmentStarted();
-    }
-
-    if (after.phase == EnginePhase.sessionComplete ||
-        after.phase == EnginePhase.segmentComplete) {
-      await _updateSessionCounters(after);
-    }
-  }
-
-  Future<void> _markCurrentSegmentStarted() async {
-    final state = _engine.currentState;
-    final index = state.currentSegmentIndex;
-    if (index < 0 || index >= _segmentIds.length) {
-      return;
-    }
-    final nowMs = _clock.nowUtc().millisecondsSinceEpoch;
-    await _sessionRepository.updateSegmentProgress(
-      UpdateSegmentInput(
-        sessionId: _sessionId!,
-        segmentId: _segmentIds[index],
-        segmentStatus: SegmentStatus.active,
-        startedAtUtcMs: nowMs,
-        pomodoroFocusCount: state.pomodoroFocusCount,
-        pomodoroCyclesCompleted: state.pomodoroCyclesCompleted,
-        totalActiveSec: _computeTotalActiveSec(state),
-        totalPausedSec: _computeTotalPausedSec(state),
-        updatedAtUtcMs: nowMs,
-      ),
-    );
-  }
-
-  Future<void> _updateSessionCounters(TimerEngineState state) async {
-    final nowMs = _clock.nowUtc().millisecondsSinceEpoch;
-    if (_sessionId == null || state.currentSegmentIndex < 0) {
-      return;
-    }
-    await _sessionRepository.updateSegmentProgress(
-      UpdateSegmentInput(
-        sessionId: _sessionId!,
-        segmentId: _segmentIds[state.currentSegmentIndex],
-        pomodoroFocusCount: state.pomodoroFocusCount,
-        pomodoroCyclesCompleted: state.pomodoroCyclesCompleted,
-        totalActiveSec: _computeTotalActiveSec(state),
-        totalPausedSec: _computeTotalPausedSec(state),
-        updatedAtUtcMs: nowMs,
-      ),
-    );
-  }
-
-  Future<void> _discardActiveSession() async {
-    if (_sessionId == null) {
-      return;
-    }
-    await _notificationAdapter.cancelAll();
-    await _sessionRepository.deleteSession(_sessionId!);
-    await _activeTimerStateRepository.delete();
-    _clearSessionContext();
-    await _focusAdapter.stopMonitoring();
-    await _aodAdapter.disable();
-  }
-
-  Future<void> _finalizeActiveSession(SessionStatus terminalStatus) async {
-    if (_sessionId == null) {
-      return;
-    }
-    await _writeTerminalSession(terminalStatus);
-    await _activeTimerStateRepository.delete();
-    _clearSessionContext();
-    await _syncPlatformAdapters();
-    _emitViewState();
-  }
-
-  /// Persist completed session but keep tag context for "Start again" UI.
-  Future<void> _persistCompletedSessionKeepUi() async {
-    if (_sessionId == null) {
-      return;
-    }
-    await _cancelSegmentEndNotifications();
-    await _writeTerminalSession(SessionStatus.completed);
-    await _activeTimerStateRepository.delete();
-    _sessionId = null;
-    _segmentIds = const [];
-    // Keep _tagId / _tagName for restartSameTag.
-  }
-
-  Future<void> _writeTerminalSession(SessionStatus terminalStatus) async {
-    if (_sessionId == null) {
-      return;
-    }
-    final now = _clock.nowUtc();
-    final nowMs = now.millisecondsSinceEpoch;
-    final state = _engine.currentState;
-    final dbSegments = await _sessionRepository.getSegmentsBySessionId(
-      _sessionId!,
-    );
-    final currentId = _currentSegmentId();
-
-    final finalizeSegments = dbSegments.map((dbSeg) {
-      final isCurrent = dbSeg.id == currentId;
-      var status = dbSeg.segmentStatus;
-      var actual = dbSeg.actualSec;
-      var ended = dbSeg.endedAtUtcMs;
-
-      if (isCurrent && status != SegmentStatus.completed) {
-        if (terminalStatus == SessionStatus.completed) {
-          status = SegmentStatus.completed;
-          actual = state.isFlexible
-              ? state.elapsedActiveSecAt(now)
-              : (state.currentSegment?.plannedSec ?? dbSeg.plannedSec);
-        } else {
-          // Abandoned / failed: keep elapsed active time for Timeline + stats.
-          status = SegmentStatus.completed;
-          actual = state.currentSegmentElapsedActiveSecAt(now);
-        }
-        ended = nowMs;
-      } else if (terminalStatus != SessionStatus.completed &&
-          (status == SegmentStatus.pending || status == SegmentStatus.active)) {
-        status = SegmentStatus.skipped;
-        actual = 0;
-        ended = nowMs;
-      }
-
-      return FinalizeSegmentInput(
-        segmentId: dbSeg.id,
-        actualSec: actual,
-        segmentPausedSec: isCurrent
-            ? state.segmentPausedSec
-            : dbSeg.segmentPausedSec,
-        segmentStatus: status,
-        startedAtUtcMs: dbSeg.startedAtUtcMs,
-        endedAtUtcMs: ended ?? (status == SegmentStatus.pending ? null : nowMs),
-      );
-    }).toList();
-
-    await _sessionRepository.finalizeSession(
-      FinalizeSessionInput(
-        sessionId: _sessionId!,
-        terminalStatus: terminalStatus,
-        endedAtUtcMs: nowMs,
-        totalActiveSec: _computeTotalActiveSec(state),
-        totalPausedSec: _computeTotalPausedSec(state),
-        segments: finalizeSegments,
-        updatedAtUtcMs: nowMs,
-      ),
+      after: after ?? _lifecycle.currentState,
+      isForeground: _isInForeground,
+      suppressNextSegmentAlert: _suppressNextSegmentAlert,
+      nowUtc: _clock.nowUtc(),
     );
   }
 
   Future<void> _handleFocusViolation() async {
-    if (_engine.currentState.phase != EnginePhase.running) {
+    if (_lifecycle.currentState.phase != EnginePhase.running) {
       return;
     }
     final settings = await _settingsRepository.get();
@@ -926,82 +344,12 @@ class TimerCoordinator {
       return;
     }
     try {
-      final copy = NotificationStrings.forLanguage(settings.language);
-      await _playFailureAlert(
-        title: copy.focusFailedTitle,
-        body: copy.focusViolationBody,
-      );
-      await _finalizeActiveSession(SessionStatus.failed);
-      _engine.reportFocusViolation();
-      _engine.resetAfterTerminalHandled();
+      final result = await _lifecycle.failForFocusViolation();
+      await _hub.onFocusFailed(_sideEffectContext(result: result));
+      _emitViewState();
     } on TimerTransitionError {
       // Ignore if phase changed concurrently.
     }
-  }
-
-  /// Failure tone via OS notification + in-app playback (stop / focus fail).
-  ///
-  /// Set [osNotification] false when the user is already in-app (e.g. Stop) so
-  /// the custom failure tone is not played twice (tray + audioplayers).
-  Future<void> _playFailureAlert({
-    required String title,
-    required String body,
-    bool osNotification = true,
-  }) async {
-    final settings = await _settingsRepository.get();
-    final toneId = settings.alertToneFocusFailure;
-    final plan = _planFor(settings);
-    final sessionId = _sessionId;
-    if (sessionId != null) {
-      await _notificationAdapter.cancel(sessionId.hashCode);
-      if (osNotification && !_isInForeground) {
-        await _notificationAdapter.showAlert(
-          title: title,
-          body: body,
-          sessionId: sessionId,
-          soundToneId: toneId,
-          notificationId: sessionId.hashCode ^ 0x4641494c, // 'FAIL'
-          playSound: plan.osNotificationPlaySound,
-        );
-      }
-    }
-    await _applyAlertModalities(
-      settings,
-      soundToneId: _isInForeground || !osNotification ? toneId : null,
-    );
-  }
-
-  Future<void> _syncPlatformAdapters() async {
-    final phase = _engine.currentState.phase;
-    final settings = await _settingsRepository.get();
-
-    if (phase == EnginePhase.running) {
-      await _startFocusMonitoring(settings);
-      await _scheduleSegmentNotification();
-      if (settings.alwaysOnDisplay) {
-        await _aodAdapter.enable();
-      }
-    } else if (phase == EnginePhase.paused ||
-        phase == EnginePhase.segmentComplete ||
-        phase == EnginePhase.sessionComplete) {
-      await _focusAdapter.stopMonitoring();
-      if (settings.alwaysOnDisplay) {
-        await _aodAdapter.enable();
-      }
-    } else {
-      await _focusAdapter.stopMonitoring();
-      await _aodAdapter.disable();
-      await _notificationAdapter.cancelAll();
-    }
-  }
-
-  Future<void> _startFocusMonitoring(AppSettings settings) async {
-    final effective = _effectiveFocusMode(settings);
-    await _focusAdapter.startMonitoring(
-      effectiveMode: effective,
-      whitelist: settings.whitelist,
-      threshold: Duration(seconds: settings.focusViolationThresholdSec),
-    );
   }
 
   FocusMode _effectiveFocusMode(AppSettings settings) {
@@ -1015,60 +363,10 @@ class TimerCoordinator {
     };
   }
 
-  Future<void> _scheduleSegmentNotification() async {
-    if (_sessionId == null) {
-      return;
-    }
-    final state = _engine.currentState;
-    if (!state.isPomodoro || state.phase != EnginePhase.running) {
-      return;
-    }
-    final segment = state.currentSegment;
-    if (segment == null) {
-      return;
-    }
-    final now = _clock.nowUtc();
-    final remaining = state.remainingSecAt(now);
-    if (remaining <= 0) {
-      return;
-    }
-
-    final settings = await _settingsRepository.get();
-    final isFocus = segment.type == SegmentType.focus;
-    final soundToneId = isFocus
-        ? settings.alertToneFocusSuccess
-        : settings.alertToneBreakOver;
-    final copy = NotificationStrings.forLanguage(settings.language);
-    final index = state.currentSegmentIndex;
-    final nextIndex = index + 1;
-    final nextType = nextIndex < state.segments.length
-        ? state.segments[nextIndex].type
-        : null;
-    final endCopy = SegmentEndCopy.build(
-      strings: copy,
-      finished: segment.type,
-      next: nextType,
-      completedCount: index + 1,
-      totalCount: state.segments.length,
-      sessionComplete: nextType == null,
-    );
-
-    await _notificationAdapter.cancel(_scheduledSegmentEndNotificationId);
-    await _notificationAdapter.scheduleSegmentEnd(
-      fireAtUtc: now.add(Duration(seconds: remaining)),
-      title: endCopy.title,
-      body: endCopy.body,
-      notificationId: _scheduledSegmentEndNotificationId,
-      sessionId: _sessionId!,
-      soundToneId: soundToneId,
-      playSound: _planFor(settings).osNotificationPlaySound,
-    );
-  }
-
   void _maybeFireFlexibleReminder(TimerEngineState state) {
     if (!state.isFlexible ||
         state.phase != EnginePhase.running ||
-        _sessionId == null) {
+        _lifecycle.sessionId == null) {
       return;
     }
     final config = state.config;
@@ -1079,75 +377,11 @@ class TimerCoordinator {
       config: config,
       flexibleReminderActiveSec: state.flexibleReminderActiveSec,
     )) {
-      _engine.acknowledgeFlexibleReminder(_clock.nowUtc());
-      unawaited(() async {
-        final settings = await _settingsRepository.get();
-        final copy = NotificationStrings.forLanguage(settings.language);
-        final plan = _planFor(settings);
-        if (_isInForeground) {
-          await _applyAlertModalities(settings, soundToneId: null);
-        } else {
-          await _notificationAdapter.showReminder(
-            title: copy.focusReminderTitle,
-            body: copy.focusReminderBody,
-            sessionId: _sessionId!,
-            playSound: plan.osNotificationPlaySound,
-          );
-          await _applyAlertModalities(settings, soundToneId: null);
-        }
-      }());
+      _lifecycle.acknowledgeFlexibleReminder();
+      unawaited(
+        _hub.maybeFlexibleReminder(_currentSideEffectContext(after: state)),
+      );
     }
-  }
-
-  String? _currentSegmentId() {
-    final index = _engine.currentState.currentSegmentIndex;
-    if (index < 0 || index >= _segmentIds.length) {
-      return null;
-    }
-    return _segmentIds[index];
-  }
-
-  Future<NotificationStrings> _notificationCopy() async {
-    final settings = await _settingsRepository.get();
-    return NotificationStrings.forLanguage(settings.language);
-  }
-
-  int _computeTotalActiveSec(TimerEngineState state) {
-    if (state.isFlexible) {
-      return state.elapsedActiveSecAt(_clock.nowUtc());
-    }
-    return state.sessionStartedAtUtc == null
-        ? 0
-        : _clock.nowUtc().difference(state.sessionStartedAtUtc!).inSeconds -
-              _computeTotalPausedSec(state);
-  }
-
-  int _computeTotalPausedSec(TimerEngineState state) {
-    var paused = state.sessionTotalPausedSec + state.segmentPausedSec;
-    if (state.phase == EnginePhase.paused && state.pauseStartedAtUtc != null) {
-      paused += _clock.nowUtc().difference(state.pauseStartedAtUtc!).inSeconds;
-    }
-    return paused < 0 ? 0 : paused;
-  }
-
-  bool _shouldPersistPhase(EnginePhase phase) =>
-      phase == EnginePhase.running ||
-      phase == EnginePhase.paused ||
-      phase == EnginePhase.segmentComplete ||
-      phase == EnginePhase.sessionComplete;
-
-  String _localTimelineDate(DateTime nowUtc) {
-    final local = nowUtc.toLocal();
-    final m = local.month.toString().padLeft(2, '0');
-    final d = local.day.toString().padLeft(2, '0');
-    return '${local.year}-$m-$d';
-  }
-
-  void _clearSessionContext() {
-    _sessionId = null;
-    _tagId = null;
-    _tagName = null;
-    _segmentIds = const [];
   }
 
   void _emitViewState() {
@@ -1158,7 +392,7 @@ class TimerCoordinator {
   }
 
   TimerViewState _buildViewState() {
-    final state = _engine.currentState;
+    final state = _lifecycle.currentState;
     final now = _clock.nowUtc();
 
     if (state.phase == EnginePhase.idle) {
@@ -1169,7 +403,7 @@ class TimerCoordinator {
     final displaySec = isCountdown
         ? state.remainingSecAt(now)
         : state.elapsedActiveSecAt(now);
-    final activeSec = _computeTotalActiveSec(state);
+    final activeSec = _lifecycle.totalActiveSec(state);
     final graceRemaining =
         (state.phase == EnginePhase.running ||
             state.phase == EnginePhase.paused)
@@ -1181,9 +415,9 @@ class TimerCoordinator {
     return TimerViewState(
       phase: state.phase,
       mode: state.mode,
-      tagId: _tagId,
-      tagName: _tagName,
-      sessionId: _sessionId,
+      tagId: _lifecycle.tagId,
+      tagName: _lifecycle.tagName,
+      sessionId: _lifecycle.sessionId,
       displaySec: displaySec,
       isCountdown: isCountdown,
       currentSegmentType: state.currentSegment?.type,
@@ -1200,27 +434,6 @@ class TimerCoordinator {
       segmentEndNextType: endSummary?.next,
       segmentEndCompletedCount: endSummary?.completedCount,
       segmentEndTotalCount: endSummary?.totalCount,
-    );
-  }
-
-  SegmentEndCopy _segmentEndCopyForTransition({
-    required TimerEngineState before,
-    required TimerEngineState after,
-    required NotificationStrings strings,
-  }) {
-    final finished = before.currentSegment!;
-    final index = before.currentSegmentIndex;
-    final nextIndex = index + 1;
-    final nextType = nextIndex < before.segments.length
-        ? before.segments[nextIndex].type
-        : null;
-    return SegmentEndCopy.build(
-      strings: strings,
-      finished: finished.type,
-      next: nextType,
-      completedCount: index + 1,
-      totalCount: before.segments.length,
-      sessionComplete: after.phase == EnginePhase.sessionComplete,
     );
   }
 
@@ -1247,47 +460,19 @@ class TimerCoordinator {
     final nextType = !sessionComplete && nextIndex < state.segments.length
         ? state.segments[nextIndex].type
         : null;
-    return (
-      finished: state.segments[index].type,
-      next: nextType,
-      completedCount: index + 1,
-      totalCount: state.segments.length,
+    final finished = state.segments[index].type;
+    final progress = segmentEndCycleProgress(
+      cyclesCompletedAfterSegment: state.pomodoroCyclesCompleted,
+      cyclesTarget: state.pomodoroCyclesTarget,
+      finished: finished,
+      sessionComplete: sessionComplete,
     );
-  }
-
-  Future<void> _guardNoActiveSession() async {
-    if (_sessionId != null ||
-        (_engine.currentState.phase != EnginePhase.idle &&
-            _engine.currentState.phase != EnginePhase.sessionComplete)) {
-      throw const ConflictError(
-        code: 'TIMER_ACTIVE_SESSION',
-        message: 'Sesi timer sedang berjalan. Selesaikan atau hentikan dulu.',
-      );
-    }
-    final active = await _sessionRepository.getActiveSession();
-    if (active != null) {
-      throw const ConflictError(
-        code: 'TIMER_ACTIVE_SESSION',
-        message: 'Sesi timer sedang berjalan. Selesaikan atau hentikan dulu.',
-      );
-    }
-  }
-
-  Future<void> _guardActiveSession() async {
-    if (_sessionId == null && _engine.currentState.phase == EnginePhase.idle) {
-      throw const ConflictError(
-        code: 'TIMER_NO_ACTIVE_SESSION',
-        message: 'Tidak ada sesi aktif.',
-      );
-    }
-  }
-
-  void _requirePhase(EnginePhase phase) {
-    if (_engine.currentState.phase != phase) {
-      throw TimerTransitionError(
-        'Requires phase $phase but was ${_engine.currentState.phase}',
-      );
-    }
+    return (
+      finished: finished,
+      next: nextType,
+      completedCount: progress.n,
+      totalCount: progress.total,
+    );
   }
 
   Future<AppResult<void>> _runAsync(Future<void> Function() action) async {

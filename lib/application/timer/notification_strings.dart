@@ -1,6 +1,6 @@
 import 'package:pomodoro_app/domain/common/enums.dart';
 
-/// Pure-Dart notification copy for [TimerCoordinator] (no Flutter/gen-l10n).
+/// Pure-Dart notification copy for timer Alerts and OS surfaces.
 ///
 /// Keep segment-end templates in sync with UX copy used on the timer screen.
 class NotificationStrings {
@@ -101,9 +101,9 @@ class NotificationStrings {
     segmentFlexible: 'Flexible',
     segmentCompleteTitleTemplate: '{label} complete',
     segmentEndBodyWithNextTemplate:
-        '{finished} finished. Next: {next}. {n} of {total} segments done.',
+        '{finished} finished. Next: {next}. Cycle {n} of {total}.',
     segmentEndBodySessionCompleteTemplate:
-        '{finished} finished. Session complete. {n} of {total} segments done.',
+        '{finished} finished. Session complete. Cycle {n} of {total}.',
   );
 
   static const id = NotificationStrings(
@@ -126,8 +126,8 @@ class NotificationStrings {
     segmentFlexible: 'Flexible',
     segmentCompleteTitleTemplate: '{label} selesai',
     segmentEndBodyWithNextTemplate:
-        '{finished} selesai. Berikutnya: {next}. {n} dari {total} segmen selesai.',
+        '{finished} selesai. Berikutnya: {next}. Siklus {n} dari {total}.',
     segmentEndBodySessionCompleteTemplate:
-        '{finished} selesai. Session selesai. {n} dari {total} segmen selesai.',
+        '{finished} selesai. Session selesai. Siklus {n} dari {total}.',
   );
 }

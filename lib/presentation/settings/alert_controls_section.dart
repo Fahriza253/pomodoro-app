@@ -6,7 +6,7 @@ import 'package:pomodoro_app/presentation/l10n/l10n_extensions.dart';
 import 'package:pomodoro_app/presentation/settings/settings_error_messages.dart';
 import 'package:pomodoro_app/presentation/settings/settings_providers.dart';
 
-/// Shared Alert controls toggles (Settings + timer sheet). BR-SETTINGS-007.
+/// Shared Alert Controls toggles (Settings + timer sheet). BR-SETTINGS-007.
 class AlertControlsSection extends ConsumerStatefulWidget {
   const AlertControlsSection({
     this.dense = false,

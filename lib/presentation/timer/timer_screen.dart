@@ -10,6 +10,7 @@ import 'package:pomodoro_app/domain/common/enums.dart';
 import 'package:pomodoro_app/presentation/l10n/l10n_extensions.dart';
 import 'package:pomodoro_app/presentation/settings/alert_controls_section.dart';
 import 'package:pomodoro_app/presentation/settings/settings_providers.dart';
+import 'package:pomodoro_app/presentation/shared/app_layout.dart';
 import 'package:pomodoro_app/presentation/shared/color_helpers.dart';
 import 'package:pomodoro_app/presentation/tag/tag_providers.dart';
 import 'package:pomodoro_app/presentation/timer/segment_labels.dart';
@@ -82,44 +83,60 @@ class _TimerScreenState extends ConsumerState<TimerScreen> {
     });
 
     final l10n = context.l10n;
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(l10n.timerTitle),
-        actions: [
-          if (chromeAsync.valueOrNull?.phase == EnginePhase.running)
-            IconButton(
-              tooltip: l10n.alertControlsSheetTitle,
-              icon: const Icon(Icons.notifications_active_outlined),
-              onPressed: () => showAlertControlsSheet(context),
-            ),
-          if (chromeAsync.valueOrNull?.phase == EnginePhase.running)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: Center(
-                child: Icon(
-                  Icons.brightness_high_outlined,
-                  size: 18,
-                  color: Theme.of(context).colorScheme.primary,
+    final phase = chromeAsync.valueOrNull?.phase;
+    final softComplete = phase == EnginePhase.sessionComplete;
+    return PopScope(
+      canPop: !softComplete,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) {
+          return;
+        }
+        // Leaving soft session-complete without LANJUTKAN = Done.
+        await runTimerAction(
+          context,
+          ref,
+          () => ref.read(timerCoordinatorProvider).dismissSessionComplete(),
+        );
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(l10n.timerTitle),
+          actions: [
+            if (chromeAsync.valueOrNull?.phase == EnginePhase.running)
+              IconButton(
+                tooltip: l10n.alertControlsSheetTitle,
+                icon: const Icon(Icons.notifications_active_outlined),
+                onPressed: () => showAlertControlsSheet(context),
+              ),
+            if (chromeAsync.valueOrNull?.phase == EnginePhase.running)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Center(
+                  child: Icon(
+                    Icons.brightness_high_outlined,
+                    size: 18,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
                 ),
               ),
-            ),
-        ],
-      ),
-      body: chromeAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, _) => Center(child: Text(l10n.timerLoadStateFailed)),
-        data: (view) {
-          final body = _buildTimerBody(view, ui);
-          return AnimatedSwitcher(
-            duration: const Duration(milliseconds: 220),
-            switchInCurve: Curves.easeOut,
-            switchOutCurve: Curves.easeIn,
-            child: KeyedSubtree(
-              key: ValueKey(_timerBodyKey(view, ui)),
-              child: body,
-            ),
-          );
-        },
+          ],
+        ),
+        body: chromeAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (_, _) => Center(child: Text(l10n.timerLoadStateFailed)),
+          data: (view) {
+            final body = _buildTimerBody(view, ui);
+            return AnimatedSwitcher(
+              duration: const Duration(milliseconds: 220),
+              switchInCurve: Curves.easeOut,
+              switchOutCurve: Curves.easeIn,
+              child: KeyedSubtree(
+                key: ValueKey(_timerBodyKey(view, ui)),
+                child: body,
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -319,9 +336,7 @@ class _IdleBody extends ConsumerWidget {
           Align(
             alignment: Alignment.center,
             child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxWidth: kTimerContentMaxWidth,
-              ),
+              constraints: const BoxConstraints(maxWidth: kAppContentMaxWidth),
               child: const SizedBox(
                 width: double.infinity,
                 child: TagPickerField(enabled: true),
@@ -579,6 +594,9 @@ class _ActiveSessionChips extends StatelessWidget {
     required this.sessionProgress,
   });
 
+  /// Spec: Tag chip max width as a fraction of available header width.
+  static const double _tagMaxWidthFraction = 0.4;
+
   final String? tagName;
   final Color? tagColor;
   final String segmentLabel;
@@ -587,47 +605,54 @@ class _ActiveSessionChips extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final chips = <Widget>[
-      if (tagName != null && tagName!.isNotEmpty)
-        _TimerInfoChip(
-          icon: Icons.label_outline,
-          label: tagName!,
-          iconColor: tagColor ?? scheme.primary,
-          background: (tagColor ?? scheme.primary).withValues(alpha: 0.12),
-          foreground: scheme.onSurface,
-          emphasized: true,
-        ),
-      if (segmentLabel.isNotEmpty)
-        _TimerInfoChip(
-          icon: Icons.timelapse_outlined,
-          label: segmentLabel,
-          iconColor: scheme.secondary,
-          background: scheme.secondaryContainer.withValues(alpha: 0.55),
-          foreground: scheme.onSecondaryContainer,
-        ),
-      if (sessionProgress != null)
-        _TimerInfoChip(
-          icon: Icons.repeat,
-          label: sessionProgress!,
-          iconColor: scheme.tertiary,
-          background: scheme.surfaceContainerHighest,
-          foreground: scheme.onSurfaceVariant,
-        ),
-    ];
 
-    if (chips.isEmpty) {
-      return const SizedBox.shrink();
-    }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final tagMaxWidth = constraints.maxWidth * _tagMaxWidthFraction;
+        final chips = <Widget>[
+          if (tagName != null && tagName!.isNotEmpty)
+            _TimerInfoChip(
+              icon: Icons.label_outline,
+              label: tagName!,
+              iconColor: tagColor ?? scheme.primary,
+              background: (tagColor ?? scheme.primary).withValues(alpha: 0.12),
+              foreground: scheme.onSurface,
+              emphasized: true,
+              maxWidth: tagMaxWidth,
+            ),
+          if (segmentLabel.isNotEmpty)
+            _TimerInfoChip(
+              icon: Icons.timelapse_outlined,
+              label: segmentLabel,
+              iconColor: scheme.secondary,
+              background: scheme.secondaryContainer.withValues(alpha: 0.55),
+              foreground: scheme.onSecondaryContainer,
+            ),
+          if (sessionProgress != null)
+            _TimerInfoChip(
+              icon: Icons.repeat,
+              label: sessionProgress!,
+              iconColor: scheme.tertiary,
+              background: scheme.surfaceContainerHighest,
+              foreground: scheme.onSurfaceVariant,
+            ),
+        ];
 
-    return Align(
-      alignment: Alignment.center,
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        alignment: WrapAlignment.center,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: chips,
-      ),
+        if (chips.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        return Align(
+          alignment: Alignment.center,
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            alignment: WrapAlignment.center,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: chips,
+          ),
+        );
+      },
     );
   }
 }
@@ -640,6 +665,7 @@ class _TimerInfoChip extends StatelessWidget {
     required this.background,
     required this.foreground,
     this.emphasized = false,
+    this.maxWidth,
   });
 
   final IconData icon;
@@ -647,21 +673,27 @@ class _TimerInfoChip extends StatelessWidget {
   final Color iconColor;
   final Color background;
   final Color foreground;
+
+  /// Soft emphasis: heavier weight only — same icon/font size as other chips.
   final bool emphasized;
+  final double? maxWidth;
 
   @override
   Widget build(BuildContext context) {
-    final textStyle = emphasized
-        ? Theme.of(context).textTheme.labelLarge?.copyWith(
-            color: foreground,
-            fontWeight: FontWeight.w600,
-          )
-        : Theme.of(context).textTheme.labelMedium?.copyWith(
-            color: foreground,
-            fontWeight: FontWeight.w500,
-          );
+    final textStyle = Theme.of(context).textTheme.labelMedium?.copyWith(
+      color: foreground,
+      fontWeight: emphasized ? FontWeight.w600 : FontWeight.w500,
+    );
 
-    return Container(
+    final labelText = Text(
+      label,
+      style: textStyle,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      softWrap: false,
+    );
+
+    Widget chip = Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: background,
@@ -670,12 +702,21 @@ class _TimerInfoChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: emphasized ? 16 : 14, color: iconColor),
+          Icon(icon, size: 14, color: iconColor),
           const SizedBox(width: 6),
-          Text(label, style: textStyle),
+          if (maxWidth != null) Flexible(child: labelText) else labelText,
         ],
       ),
     );
+
+    if (maxWidth != null) {
+      chip = ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: maxWidth!),
+        child: chip,
+      );
+    }
+
+    return chip;
   }
 }
 
@@ -800,8 +841,10 @@ class _SessionCompleteBody extends ConsumerWidget {
             const SizedBox(height: 8),
             Text(endCopy.body, textAlign: TextAlign.center),
           ],
-          const SizedBox(height: 8),
-          Text(l10n.sessionSavedBody, textAlign: TextAlign.center),
+          if (!isPomodoro) ...[
+            const SizedBox(height: 8),
+            Text(l10n.sessionSavedBody, textAlign: TextAlign.center),
+          ],
           const SizedBox(height: 8),
           Text(l10n.activeDuration(duration), textAlign: TextAlign.center),
           if (isPomodoro && view.completedCycleCount != null) ...[
@@ -824,12 +867,16 @@ class _SessionCompleteBody extends ConsumerWidget {
               onPressed: () => runTimerAction(
                 context,
                 ref,
-                () => ref.read(timerCoordinatorProvider).restartSameTag(),
+                () => isPomodoro
+                    ? ref.read(timerCoordinatorProvider).continuePomodoro()
+                    : ref.read(timerCoordinatorProvider).restartSameTag(),
               ),
               style: FilledButton.styleFrom(
                 minimumSize: const Size(double.infinity, 48),
               ),
-              child: Text(l10n.startAgainUpper),
+              child: Text(
+                isPomodoro ? l10n.continueUpper : l10n.startAgainUpper,
+              ),
             ),
           ),
           const SizedBox(height: 8),

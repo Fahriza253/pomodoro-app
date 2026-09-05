@@ -15,12 +15,10 @@ final tagListProvider = StreamProvider<List<Tag>>((ref) {
   return ref.watch(tagRepositoryProvider).watchActiveOrdered();
 });
 
-final tagFormProvider = FutureProvider.family<TagFormData, String>((
-  ref,
-  tagId,
-) async {
-  return ref.watch(tagUseCasesProvider).getTagForm(tagId);
-});
+final tagFormProvider =
+    FutureProvider.autoDispose.family<TagFormData, String>((ref, tagId) async {
+      return ref.watch(tagUseCasesProvider).getTagForm(tagId);
+    });
 
 /// Preset tag colors for the form UI.
 const tagColorPresets = [

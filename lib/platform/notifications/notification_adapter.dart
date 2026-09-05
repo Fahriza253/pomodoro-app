@@ -30,9 +30,9 @@ abstract class NotificationAdapter {
 
   /// Schedules a segment-end alert that fires even when the app is backgrounded.
   ///
-  /// [soundToneId] is an [AlertToneCatalog] id used for Android channel sound
-  /// and iOS bundle sound.
-  Future<void> scheduleSegmentEnd({
+  /// Returns `true` when the OS accepted the enqueue. [soundToneId] is an
+  /// [AlertToneCatalog] id used for Android channel sound and iOS bundle sound.
+  Future<bool> scheduleSegmentEnd({
     required DateTime fireAtUtc,
     required String title,
     required String body,
@@ -44,9 +44,10 @@ abstract class NotificationAdapter {
 
   /// Immediate alert (e.g. focus failure) with custom sound.
   ///
-  /// [deepLinkSource] is appended to the tap payload (e.g. `segment_end`) so
-  /// the app can suppress a duplicate in-app alert when opened from the tray.
-  Future<void> showAlert({
+  /// Returns `true` when the OS accepted the post. [deepLinkSource] is
+  /// appended to the tap payload (e.g. `segment_end`) so the app can suppress
+  /// a duplicate in-app alert when opened from the tray.
+  Future<bool> showAlert({
     required String title,
     required String body,
     required String sessionId,
@@ -56,7 +57,8 @@ abstract class NotificationAdapter {
     bool playSound = true,
   });
 
-  Future<void> showReminder({
+  /// Returns `true` when the OS accepted the post.
+  Future<bool> showReminder({
     required String title,
     required String body,
     required String sessionId,

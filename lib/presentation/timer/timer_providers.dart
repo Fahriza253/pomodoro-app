@@ -118,6 +118,8 @@ final selectedTagConfigProvider = FutureProvider<TagModeConfig?>((ref) async {
   if (tagId == null) {
     return null;
   }
+  // Config save updates the Tag row; re-read when the live list emits.
+  await ref.watch(tagListProvider.future);
   return ref.watch(tagRepositoryProvider).getConfig(tagId, ui.selectedMode);
 });
 

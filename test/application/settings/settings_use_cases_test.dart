@@ -46,7 +46,7 @@ void main() {
       expect(result.value!.theme, AppTheme.dark);
     });
 
-    test('updateSettings persists Alert controls', () async {
+    test('updateSettings persists Alert Controls', () async {
       final result = await useCases.updateSettings(
         const AppSettingsPatch(
           alertHapticEnabled: false,
@@ -65,7 +65,7 @@ void main() {
       expect(loaded.alertFlashEnabled, isTrue);
     });
 
-    test('getSettings returns Alert control defaults', () async {
+    test('getSettings returns Alert Controls defaults', () async {
       final settings = await useCases.getSettings();
       expect(settings.alertHapticEnabled, isTrue);
       expect(settings.alertSoundMuted, isFalse);

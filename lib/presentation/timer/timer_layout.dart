@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-
-/// Shared layout tokens for timer screen controls on wide viewports.
-const kTimerContentMaxWidth = 400.0;
+import 'package:pomodoro_app/presentation/shared/app_layout.dart';
 
 /// Max width per mode tab (Pomodoro / Flexible); total selector width is 2× this.
 const kTimerModeTabMaxWidth = 200.0;
@@ -102,7 +100,7 @@ class TimerStageLayout extends StatelessWidget {
             child: Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(
-                  maxWidth: kTimerContentMaxWidth,
+                  maxWidth: kAppContentMaxWidth,
                 ),
                 child: visual,
               ),

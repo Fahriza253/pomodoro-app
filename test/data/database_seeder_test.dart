@@ -26,6 +26,9 @@ void main() {
       (c) => c.mode == TimerMode.pomodoro.toDb(),
     );
     expect(pomodoro.focusDurationSec, 1500);
+    expect(pomodoro.shortBreakDurationSec, 300);
+    expect(pomodoro.longBreakDurationSec, 900);
+    expect(pomodoro.sessionsBeforeLongBreak, 4);
     expect(pomodoro.totalCycles, 4);
 
     final flexible = configs.firstWhere(
