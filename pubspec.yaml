@@ -27,6 +27,7 @@ dependencies:
   audioplayers: ^6.5.0
   flutter_timezone: ^5.1.0
   live_activities: ^2.5.1
+  lottie: ^3.5.1
 
 dev_dependencies:
   flutter_test:
@@ -43,3 +44,4 @@ flutter:
   assets:
     - assets/audios/
     - assets/icon/icon.png
+    - assets/lottie/winner.json

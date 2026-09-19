@@ -3,6 +3,7 @@ import 'package:pomodoro_app/data/database/app_database.dart' as db;
 import 'package:pomodoro_app/data/mappers/tag_mapper.dart';
 import 'package:pomodoro_app/domain/common/app_error.dart';
 import 'package:pomodoro_app/domain/common/enums.dart';
+import 'package:pomodoro_app/domain/tag/debug_short_tag.dart';
 import 'package:pomodoro_app/domain/tag/system_tags.dart';
 import 'package:pomodoro_app/domain/tag/tag.dart';
 import 'package:pomodoro_app/domain/tag/tag_inputs.dart';
@@ -21,6 +22,9 @@ abstract class TagRepository {
   Future<Tag> update(UpdateTagInput input);
   Future<void> softDelete(String id);
   Future<void> reorder(List<String> tagIdsInOrder);
+
+  /// Upserts reserved [SystemTags.debugName] when [DebugShortTag.enabled].
+  Future<void> ensureDebugShortTag();
 
   Stream<List<Tag>> watchActiveOrdered();
 }
@@ -123,6 +127,12 @@ class DriftTagRepository implements TagRepository {
 
   @override
   Future<Tag> create(CreateTagInput input) async {
+    if (DebugShortTag.isReservedName(input.name)) {
+      throw const ValidationError(
+        code: 'TAG_NAME_RESERVED',
+        message: 'Nama tag ini dilindungi.',
+      );
+    }
     if (await existsActiveName(input.name)) {
       throw const ValidationError(
         code: 'TAG_NAME_DUPLICATE',
@@ -197,6 +207,13 @@ class DriftTagRepository implements TagRepository {
         code: 'TAG_NOT_FOUND',
         message: 'Tag tidak ditemukan.',
         details: {'tagId': input.id},
+      );
+    }
+    if (existing.name == SystemTags.debugName ||
+        DebugShortTag.isReservedName(input.name)) {
+      throw const ValidationError(
+        code: 'TAG_NAME_RESERVED',
+        message: 'Nama tag ini dilindungi.',
       );
     }
 
@@ -287,6 +304,12 @@ class DriftTagRepository implements TagRepository {
         message: 'Tag default tidak dapat dihapus.',
       );
     }
+    if (tag.name == SystemTags.debugName) {
+      throw const ValidationError(
+        code: 'TAG_NAME_RESERVED',
+        message: 'Tag ini dilindungi dan tidak dapat dihapus.',
+      );
+    }
 
     final now = DateTime.now().toUtc().millisecondsSinceEpoch;
     await (_db.update(_db.tags)..where((t) => t.id.equals(id))).write(
@@ -360,6 +383,145 @@ class DriftTagRepository implements TagRepository {
       reminderEnabled: Value(config.reminderEnabled ? 1 : 0),
       updatedAt: updatedAt,
     );
+  }
+
+  @override
+  Future<void> ensureDebugShortTag() async {
+    if (!DebugShortTag.enabled) {
+      return;
+    }
+
+    final now = DateTime.now().toUtc().millisecondsSinceEpoch;
+    final existing =
+        await (_db.select(_db.tags)
+              ..where((t) => t.name.equals(SystemTags.debugName)))
+            .getSingleOrNull();
+
+    try {
+      await _db.transaction(() async {
+        late final String tagId;
+        if (existing == null) {
+          tagId = _uuid.v4();
+          final sortOrder = await _nextSortOrder();
+          await _db
+              .into(_db.tags)
+              .insert(
+                db.TagsCompanion.insert(
+                  id: tagId,
+                  name: SystemTags.debugName,
+                  color: const Value(DebugShortTag.color),
+                  sortOrder: Value(sortOrder),
+                  createdAt: now,
+                  updatedAt: now,
+                ),
+              );
+          await _db.batch((batch) {
+            batch.insertAll(_db.tagModeConfigs, [
+              _pomodoroCompanion(
+                id: _uuid.v4(),
+                tagId: tagId,
+                config: DebugShortTag.pomodoroConfig,
+                updatedAt: now,
+              ),
+              _flexibleCompanion(
+                id: _uuid.v4(),
+                tagId: tagId,
+                config: DebugShortTag.flexibleConfig,
+                updatedAt: now,
+              ),
+            ]);
+          });
+          return;
+        }
+
+        tagId = existing.id;
+        await (_db.update(_db.tags)..where((t) => t.id.equals(tagId))).write(
+          db.TagsCompanion(
+            color: const Value(DebugShortTag.color),
+            deletedAt: const Value(null),
+            updatedAt: Value(now),
+          ),
+        );
+
+        final pomodoro = DebugShortTag.pomodoroConfig;
+        final flexible = DebugShortTag.flexibleConfig;
+
+        final pomodoroRow =
+            await (_db.select(_db.tagModeConfigs)..where(
+                  (t) =>
+                      t.tagId.equals(tagId) &
+                      t.mode.equals(TimerMode.pomodoro.toDb()),
+                ))
+                .getSingleOrNull();
+        if (pomodoroRow == null) {
+          await _db
+              .into(_db.tagModeConfigs)
+              .insert(
+                _pomodoroCompanion(
+                  id: _uuid.v4(),
+                  tagId: tagId,
+                  config: pomodoro,
+                  updatedAt: now,
+                ),
+              );
+        } else {
+          await (_db.update(
+            _db.tagModeConfigs,
+          )..where((t) => t.id.equals(pomodoroRow.id))).write(
+            db.TagModeConfigsCompanion(
+              focusDurationSec: Value(pomodoro.focusDurationSec),
+              shortBreakDurationSec: Value(pomodoro.shortBreakDurationSec),
+              longBreakDurationSec: Value(pomodoro.longBreakDurationSec),
+              sessionsBeforeLongBreak: Value(pomodoro.sessionsBeforeLongBreak),
+              totalCycles: Value(pomodoro.totalCycles),
+              autoStartBreak: Value(pomodoro.autoStartBreak ? 1 : 0),
+              autoStartFocus: Value(pomodoro.autoStartFocus ? 1 : 0),
+              updatedAt: Value(now),
+            ),
+          );
+        }
+
+        final flexibleRow =
+            await (_db.select(_db.tagModeConfigs)..where(
+                  (t) =>
+                      t.tagId.equals(tagId) &
+                      t.mode.equals(TimerMode.flexible.toDb()),
+                ))
+                .getSingleOrNull();
+        if (flexibleRow == null) {
+          await _db
+              .into(_db.tagModeConfigs)
+              .insert(
+                _flexibleCompanion(
+                  id: _uuid.v4(),
+                  tagId: tagId,
+                  config: flexible,
+                  updatedAt: now,
+                ),
+              );
+        } else {
+          await (_db.update(
+            _db.tagModeConfigs,
+          )..where((t) => t.id.equals(flexibleRow.id))).write(
+            db.TagModeConfigsCompanion(
+              defaultDurationSec: Value(flexible.defaultDurationSec),
+              reminderIntervalMin: Value(flexible.reminderIntervalMin),
+              reminderEnabled: Value(flexible.reminderEnabled ? 1 : 0),
+              updatedAt: Value(now),
+            ),
+          );
+        }
+      });
+    } catch (e) {
+      if (e is AppError) {
+        rethrow;
+      }
+      throw StorageError(
+        code: 'STORAGE_WRITE_FAILED',
+        message: 'Gagal memastikan debug tag.',
+        cause: e,
+      );
+    }
   }
 
   @override

@@ -1,7 +1,7 @@
-/// Shared limits for TagModeConfig inputs (UI + validation).
-///
-/// Values are expressed in minutes (UI-facing), but can be converted to seconds
-/// for persistence.
+// Shared limits for TagModeConfig inputs (UI + validation).
+//
+// Values are expressed in minutes (UI-facing), but can be converted to seconds
+// for persistence.
 class TagConfigLimits {
   const TagConfigLimits._();
 

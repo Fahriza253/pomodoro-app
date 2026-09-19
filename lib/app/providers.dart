@@ -15,6 +15,8 @@ final appDatabaseProvider = FutureProvider<AppDatabase>((ref) async {
   final db = openAppDatabase();
   ref.onDispose(db.close);
   await DatabaseSeeder(db).seedIfNeeded();
+  // QA-only: `--dart-define=DEBUG_SHORT_TAG=true` upserts reserved Debug 5s Tag.
+  await DriftTagRepository(db).ensureDebugShortTag();
   return db;
 });
 

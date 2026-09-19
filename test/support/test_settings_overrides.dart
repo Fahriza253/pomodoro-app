@@ -49,3 +49,8 @@ Tag testGeneralTag({int updatedAtUtcMs = 1}) {
 final testTagListOverride = tagListProvider.overrideWith(
   (ref) => Stream.value([testGeneralTag()]),
 );
+
+/// Same as [testTagListOverride] for the timer picker stream.
+final testTimerTagListOverride = timerTagListProvider.overrideWith(
+  (ref) => Stream.value([testGeneralTag()]),
+);

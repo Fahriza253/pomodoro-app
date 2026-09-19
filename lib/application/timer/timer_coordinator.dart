@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:pomodoro_app/application/timer/config_snapshot_factory.dart';
 import 'package:pomodoro_app/application/timer/lifecycle_result.dart';
 import 'package:pomodoro_app/application/timer/notification_strings.dart';
 import 'package:pomodoro_app/application/timer/segment_end_cycle_progress.dart';
@@ -8,12 +7,8 @@ import 'package:pomodoro_app/application/timer/persist_reason.dart';
 import 'package:pomodoro_app/application/timer/session_lifecycle.dart';
 import 'package:pomodoro_app/application/timer/side_effect_context.dart';
 import 'package:pomodoro_app/application/timer/timer_side_effect_hub.dart';
-import 'package:pomodoro_app/application/timer/timer_state_builder.dart';
 import 'package:pomodoro_app/application/timer/timer_view_state.dart';
-import 'package:pomodoro_app/data/repositories/active_timer_state_repository.dart';
-import 'package:pomodoro_app/data/repositories/session_repository.dart';
 import 'package:pomodoro_app/data/repositories/settings_repository.dart';
-import 'package:pomodoro_app/data/repositories/tag_repository.dart';
 import 'package:pomodoro_app/domain/common/app_error.dart';
 import 'package:pomodoro_app/domain/common/enums.dart';
 import 'package:pomodoro_app/domain/common/result.dart';
@@ -21,66 +16,24 @@ import 'package:pomodoro_app/domain/settings/app_settings.dart';
 import 'package:pomodoro_app/domain/timer/active_timer_state.dart';
 import 'package:pomodoro_app/domain/timer/early_stop_grace.dart';
 import 'package:pomodoro_app/domain/timer/models/timer_engine_state.dart';
-import 'package:pomodoro_app/domain/timer/segment_planner.dart';
 import 'package:pomodoro_app/domain/timer/timer_engine.dart';
 import 'package:pomodoro_app/domain/timer/timer_transition_error.dart';
-import 'package:pomodoro_app/platform/aod/aod_adapter.dart';
-import 'package:pomodoro_app/platform/audio/alert_sound_adapter.dart';
 import 'package:pomodoro_app/platform/clock/clock_adapter.dart';
-import 'package:pomodoro_app/platform/flash/flash_adapter.dart';
 import 'package:pomodoro_app/platform/focus/focus_adapter.dart';
-import 'package:pomodoro_app/platform/haptic/haptic_adapter.dart';
-import 'package:pomodoro_app/platform/notifications/notification_adapter.dart';
-import 'package:uuid/uuid.dart';
 
 /// Thin facade: view-state, recovery prompts, and Lifecycle → Hub order.
+///
+/// Constructed with injected [SessionLifecycle] and [TimerSideEffectHub] —
+/// production wiring owns those modules; this facade does not.
 class TimerCoordinator {
   TimerCoordinator({
-    required SessionRepository sessionRepository,
-    required TagRepository tagRepository,
-    required ActiveTimerStateRepository activeTimerStateRepository,
-    required SettingsRepository settingsRepository,
-    required NotificationAdapter notificationAdapter,
-    required AlertSoundAdapter alertSoundAdapter,
-    required HapticAdapter hapticAdapter,
-    required FlashAdapter flashAdapter,
-    required FocusAdapter focusAdapter,
-    required AODAdapter aodAdapter,
-    required ClockAdapter clock,
-    TimerEngine? engine,
-    SegmentPlanner? planner,
-    ConfigSnapshotFactory? configSnapshotFactory,
-    TimerStateBuilder? stateBuilder,
-    Uuid? uuid,
-    SessionLifecycle? sessionLifecycle,
-    TimerSideEffectHub? sideEffectHub,
-  }) : _lifecycle =
-           sessionLifecycle ??
-           SessionLifecycle(
-             sessionRepository: sessionRepository,
-             tagRepository: tagRepository,
-             activeTimerStateRepository: activeTimerStateRepository,
-             clock: clock,
-             engine: engine,
-             planner: planner,
-             configSnapshotFactory: configSnapshotFactory,
-             stateBuilder: stateBuilder,
-             uuid: uuid,
-           ),
-       _settingsRepository = settingsRepository,
-       _focusAdapter = focusAdapter,
-       _clock = clock,
-       _hub =
-           sideEffectHub ??
-           TimerSideEffectHub(
-             settingsRepository: settingsRepository,
-             notificationAdapter: notificationAdapter,
-             alertSoundAdapter: alertSoundAdapter,
-             hapticAdapter: hapticAdapter,
-             flashAdapter: flashAdapter,
-             focusAdapter: focusAdapter,
-             aodAdapter: aodAdapter,
-           ) {
+    required SessionLifecycle sessionLifecycle,
+    required TimerSideEffectHub sideEffectHub,
+    required SettingsRepository this._settingsRepository,
+    required FocusAdapter this._focusAdapter,
+    required ClockAdapter this._clock,
+  }) : _lifecycle = sessionLifecycle,
+       _hub = sideEffectHub {
     _focusSubscription = _focusAdapter.watchViolations().listen((_) {
       unawaited(_handleFocusViolation());
     });
@@ -107,7 +60,6 @@ class TimerCoordinator {
 
   Stream<TimerViewState> get viewState => _viewStateController.stream;
   TimerViewState get currentViewState => _buildViewState();
-  TimerEngine get engine => _lifecycle.engine;
 
   bool get hasActiveSession => _lifecycle.hasActiveSession;
 
@@ -274,9 +226,9 @@ class TimerCoordinator {
 
   void dispose() {
     _focusSubscription.cancel();
-    // AlertSoundAdapter lifecycle is owned by Riverpod provider — do not dispose here.
+    // AlertSoundAdapter + SessionLifecycle lifecycles are owned by Riverpod
+    // providers — do not dispose them here.
     _viewStateController.close();
-    _lifecycle.dispose();
   }
 
   Future<void> _afterTransition(LifecycleResult result) async {

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lottie/lottie.dart';
 import 'package:pomodoro_app/app/timer_providers.dart';
 import 'package:pomodoro_app/application/timer/notification_strings.dart';
 import 'package:pomodoro_app/application/timer/segment_end_copy.dart';
@@ -14,6 +15,7 @@ import 'package:pomodoro_app/presentation/shared/app_layout.dart';
 import 'package:pomodoro_app/presentation/shared/color_helpers.dart';
 import 'package:pomodoro_app/presentation/tag/tag_providers.dart';
 import 'package:pomodoro_app/presentation/timer/segment_labels.dart';
+import 'package:pomodoro_app/presentation/timer/soft_complete_presentation_intent.dart';
 import 'package:pomodoro_app/presentation/timer/timer_actions.dart';
 import 'package:pomodoro_app/presentation/timer/timer_format.dart';
 import 'package:pomodoro_app/presentation/timer/timer_layout.dart';
@@ -527,7 +529,7 @@ class _ActiveBody extends ConsumerWidget {
     if (tagId == null) {
       return null;
     }
-    final tags = ref.watch(tagListProvider).valueOrNull;
+    final tags = ref.watch(timerTagListProvider).valueOrNull;
     if (tags == null) {
       return null;
     }
@@ -804,95 +806,130 @@ class _SegmentCompleteBody extends ConsumerWidget {
   }
 }
 
-class _SessionCompleteBody extends ConsumerWidget {
+class _SessionCompleteBody extends ConsumerStatefulWidget {
   const _SessionCompleteBody({required this.view});
 
   final TimerViewState view;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = context.l10n;
-    final isPomodoro = view.mode == TimerMode.pomodoro;
-    final duration = formatTimerSeconds(view.displaySec, forceHours: true);
+  ConsumerState<_SessionCompleteBody> createState() =>
+      _SessionCompleteBodyState();
+}
+
+class _SessionCompleteBodyState extends ConsumerState<_SessionCompleteBody> {
+  late final SoftCompletePresentationIntent _intent =
+      SoftCompletePresentationIntent();
+
+  Future<bool> _run(SoftCompleteWireTarget wire) {
+    final coordinator = ref.read(timerCoordinatorProvider);
+    return runTimerAction(
+      context,
+      ref,
+      () => switch (wire) {
+        SoftCompleteWireTarget.restartSameTag => coordinator.restartSameTag(),
+        SoftCompleteWireTarget.dismissSessionComplete =>
+          coordinator.dismissSessionComplete(),
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final language = ref
         .watch(appSettingsStreamProvider)
         .maybeWhen(data: (s) => s.language, orElse: () => 'en');
-    final endCopy = view.hasSegmentEndSummary
-        ? SegmentEndCopy.build(
-            strings: NotificationStrings.forLanguage(language),
-            finished: view.segmentEndFinishedType!,
-            next: view.segmentEndNextType,
-            completedCount: view.segmentEndCompletedCount!,
-            totalCount: view.segmentEndTotalCount!,
-            sessionComplete: true,
-          )
-        : null;
+    final screen = _intent.present(
+      view: widget.view,
+      l10n: context.l10n,
+      languageCode: language,
+    );
 
-    return TimerStageLayout(
-      visual: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            endCopy?.title ?? l10n.sessionCompleteTitle,
-            style: Theme.of(context).textTheme.headlineMedium,
-            textAlign: TextAlign.center,
+    return switch (screen) {
+      SoftCompleteCelebration(
+        :final lottieAsset,
+        :final headline,
+        :final body,
+        :final primary,
+        :final secondary,
+      ) =>
+        TimerStageLayout(
+          visual: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                height: 160,
+                width: 160,
+                child: Lottie.asset(
+                  lottieAsset,
+                  repeat: true,
+                  fit: BoxFit.contain,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                headline,
+                style: Theme.of(context).textTheme.headlineMedium,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(body, textAlign: TextAlign.center),
+            ],
           ),
-          if (endCopy != null) ...[
-            const SizedBox(height: 8),
-            Text(endCopy.body, textAlign: TextAlign.center),
-          ],
-          if (!isPomodoro) ...[
-            const SizedBox(height: 8),
-            Text(l10n.sessionSavedBody, textAlign: TextAlign.center),
-          ],
-          const SizedBox(height: 8),
-          Text(l10n.activeDuration(duration), textAlign: TextAlign.center),
-          if (isPomodoro && view.completedCycleCount != null) ...[
-            const SizedBox(height: 8),
-            Text(
-              l10n.cycleProgress(
-                view.completedCycleCount!,
-                view.totalCycleTarget!,
+          footer: _footer(primary, secondary),
+        ),
+      SoftCompleteSimple(
+        :final headline,
+        :final segmentEndBody,
+        :final savedLine,
+        :final durationLine,
+        :final primary,
+        :final secondary,
+      ) =>
+        TimerStageLayout(
+          visual: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                headline,
+                style: Theme.of(context).textTheme.headlineMedium,
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ],
-      ),
-      footer: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TimerButtonSlot(
-            child: FilledButton(
-              onPressed: () => runTimerAction(
-                context,
-                ref,
-                () => isPomodoro
-                    ? ref.read(timerCoordinatorProvider).continuePomodoro()
-                    : ref.read(timerCoordinatorProvider).restartSameTag(),
-              ),
-              style: FilledButton.styleFrom(
-                minimumSize: const Size(double.infinity, 48),
-              ),
-              child: Text(
-                isPomodoro ? l10n.continueUpper : l10n.startAgainUpper,
-              ),
-            ),
+              if (segmentEndBody != null) ...[
+                const SizedBox(height: 8),
+                Text(segmentEndBody, textAlign: TextAlign.center),
+              ],
+              const SizedBox(height: 8),
+              Text(savedLine, textAlign: TextAlign.center),
+              const SizedBox(height: 8),
+              Text(durationLine, textAlign: TextAlign.center),
+            ],
           ),
-          const SizedBox(height: 8),
-          TimerButtonSlot(
-            child: OutlinedButton(
-              onPressed: () => runTimerAction(
-                context,
-                ref,
-                () =>
-                    ref.read(timerCoordinatorProvider).dismissSessionComplete(),
-              ),
-              child: Text(l10n.doneUpper),
+          footer: _footer(primary, secondary),
+        ),
+    };
+  }
+
+  Widget _footer(SoftCompleteAction primary, SoftCompleteAction secondary) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        TimerButtonSlot(
+          child: FilledButton(
+            onPressed: () => _run(primary.wire),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size(double.infinity, 48),
             ),
+            child: Text(primary.label),
           ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 8),
+        TimerButtonSlot(
+          child: OutlinedButton(
+            onPressed: () => _run(secondary.wire),
+            child: Text(secondary.label),
+          ),
+        ),
+      ],
     );
   }
 }

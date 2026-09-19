@@ -14,7 +14,7 @@ class TagPickerField extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
-    final tagsAsync = ref.watch(tagListProvider);
+    final tagsAsync = ref.watch(timerTagListProvider);
     final ui = ref.watch(timerUiProvider);
     final selectedId = ui.selectedTagId;
 

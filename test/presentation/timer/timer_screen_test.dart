@@ -35,6 +35,7 @@ void main() {
           appDatabaseProvider.overrideWith((ref) async => db),
           testAppSettingsStreamOverride,
           testTagListOverride,
+          testTimerTagListOverride,
         ],
         child: const PomodoroApp(),
       ),

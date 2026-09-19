@@ -24,6 +24,9 @@ class TimerEngine {
   Stream<TimerEngineState> get states => _stateController.stream;
 
   void dispose() {
+    if (_stateController.isClosed) {
+      return;
+    }
     _stateController.close();
   }
 
@@ -314,7 +317,7 @@ class TimerEngine {
     );
   }
 
-  /// User tap **Lanjutkan** from session_complete (BR-TIMER-009).
+  /// Extend block from session_complete (legacy; product uses restartSameTag).
   void continuePomodoro(DateTime nowUtc) {
     _requirePhase(EnginePhase.sessionComplete, 'continuePomodoro');
     if (!_state.isPomodoro || _state.config == null) {

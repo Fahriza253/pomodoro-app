@@ -54,7 +54,6 @@ class SessionLifecycle {
   String? _tagName;
   List<String> _segmentIds = const [];
 
-  TimerEngine get engine => _engine;
   TimerEngineState get currentState => _engine.currentState;
   String? get sessionId => _sessionId;
   String? get tagId => _tagId;
@@ -405,7 +404,13 @@ class SessionLifecycle {
     return paused < 0 ? 0 : paused;
   }
 
+  bool _disposed = false;
+
   void dispose() {
+    if (_disposed) {
+      return;
+    }
+    _disposed = true;
     _engine.dispose();
   }
 

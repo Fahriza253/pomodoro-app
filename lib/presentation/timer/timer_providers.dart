@@ -119,13 +119,13 @@ final selectedTagConfigProvider = FutureProvider<TagModeConfig?>((ref) async {
     return null;
   }
   // Config save updates the Tag row; re-read when the live list emits.
-  await ref.watch(tagListProvider.future);
+  await ref.watch(timerTagListProvider.future);
   return ref.watch(tagRepositoryProvider).getConfig(tagId, ui.selectedMode);
 });
 
 /// Initializes default tag when tag list loads.
 final timerDefaultTagProvider = Provider<void>((ref) {
-  final tagsAsync = ref.watch(tagListProvider);
+  final tagsAsync = ref.watch(timerTagListProvider);
   final ui = ref.watch(timerUiProvider);
   tagsAsync.whenData((tags) {
     if (tags.isNotEmpty && ui.selectedTagId == null) {

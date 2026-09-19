@@ -1,3 +1,4 @@
+import 'package:pomodoro_app/domain/tag/debug_short_tag.dart';
 import 'package:pomodoro_app/domain/tag/tag_inputs.dart';
 import 'package:pomodoro_app/domain/tag/tag_config_limits.dart';
 
@@ -36,6 +37,14 @@ class TagConfigValidator {
         const ValidationIssue(
           field: 'name',
           message: 'Nama tag maksimal 64 karakter.',
+        ),
+      ]);
+    }
+    if (DebugShortTag.isReservedName(trimmed)) {
+      return ValidationResult.invalid([
+        const ValidationIssue(
+          field: 'name',
+          message: 'Nama tag ini dilindungi.',
         ),
       ]);
     }
