@@ -3,6 +3,7 @@ import 'package:pomodoro_app/app/providers.dart';
 import 'package:pomodoro_app/application/timer/recovery_check_result.dart';
 import 'package:pomodoro_app/application/timer/session_lifecycle.dart';
 import 'package:pomodoro_app/application/timer/session_recovery_service.dart';
+import 'package:pomodoro_app/application/timer/session_segment_writer.dart';
 import 'package:pomodoro_app/application/timer/timer_coordinator.dart';
 import 'package:pomodoro_app/application/timer/timer_side_effect_hub.dart';
 import 'package:pomodoro_app/platform/aod/aod_adapter.dart';
@@ -59,12 +60,20 @@ final sessionRecoveryServiceProvider = Provider<SessionRecoveryService>((ref) {
   );
 });
 
+final sessionSegmentWriterProvider = Provider<SessionSegmentWriter>((ref) {
+  return SessionSegmentWriter(
+    sessionRepository: ref.watch(sessionRepositoryProvider),
+    clock: ref.watch(clockAdapterProvider),
+  );
+});
+
 final sessionLifecycleProvider = Provider<SessionLifecycle>((ref) {
   final lifecycle = SessionLifecycle(
     sessionRepository: ref.watch(sessionRepositoryProvider),
     tagRepository: ref.watch(tagRepositoryProvider),
     activeTimerStateRepository: ref.watch(activeTimerStateRepositoryProvider),
     clock: ref.watch(clockAdapterProvider),
+    segmentWriter: ref.watch(sessionSegmentWriterProvider),
   );
   ref.onDispose(lifecycle.dispose);
   return lifecycle;
