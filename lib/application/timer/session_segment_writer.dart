@@ -4,7 +4,8 @@ import 'package:pomodoro_app/domain/session/session_inputs.dart';
 import 'package:pomodoro_app/domain/timer/models/timer_engine_state.dart';
 import 'package:pomodoro_app/platform/clock/clock_adapter.dart';
 
-/// Durable Segment row writes for mid-Session engine transitions.
+/// Durable Segment row writes for mid-Session transitions, terminal finalize,
+/// and Pomodoro Lanjutkan append.
 ///
 /// Stateless across Sessions: callers pass identity and active-time totals.
 class SessionSegmentWriter {
@@ -133,6 +134,105 @@ class SessionSegmentWriter {
         nowMs: nowMs,
       );
     }
+  }
+
+  /// Load Segments and finalize Session for [terminalStatus].
+  Future<void> writeTerminal({
+    required String sessionId,
+    required List<String> segmentIds,
+    required TimerEngineState state,
+    required SessionStatus terminalStatus,
+    required int totalActiveSec,
+    required int totalPausedSec,
+  }) async {
+    final now = _clock.nowUtc();
+    final nowMs = now.millisecondsSinceEpoch;
+    final dbSegments = await _sessionRepository.getSegmentsBySessionId(
+      sessionId,
+    );
+    final currentId = _segmentIdAt(segmentIds, state.currentSegmentIndex);
+
+    final finalizeSegments = dbSegments.map((dbSeg) {
+      final isCurrent = dbSeg.id == currentId;
+      var status = dbSeg.segmentStatus;
+      var actual = dbSeg.actualSec;
+      var ended = dbSeg.endedAtUtcMs;
+
+      if (isCurrent && status != SegmentStatus.completed) {
+        if (terminalStatus == SessionStatus.completed) {
+          status = SegmentStatus.completed;
+          actual = state.isFlexible
+              ? state.elapsedActiveSecAt(now)
+              : (state.currentSegment?.plannedSec ?? dbSeg.plannedSec);
+        } else {
+          // Abandoned / failed: keep elapsed active time for Timeline + stats.
+          status = SegmentStatus.completed;
+          actual = state.currentSegmentElapsedActiveSecAt(now);
+        }
+        ended = nowMs;
+      } else if (terminalStatus != SessionStatus.completed &&
+          (status == SegmentStatus.pending || status == SegmentStatus.active)) {
+        status = SegmentStatus.skipped;
+        actual = 0;
+        ended = nowMs;
+      }
+
+      return FinalizeSegmentInput(
+        segmentId: dbSeg.id,
+        actualSec: actual,
+        segmentPausedSec: isCurrent
+            ? state.segmentPausedSec
+            : dbSeg.segmentPausedSec,
+        segmentStatus: status,
+        startedAtUtcMs: dbSeg.startedAtUtcMs,
+        endedAtUtcMs: ended ?? (status == SegmentStatus.pending ? null : nowMs),
+      );
+    }).toList();
+
+    await _sessionRepository.finalizeSession(
+      FinalizeSessionInput(
+        sessionId: sessionId,
+        terminalStatus: terminalStatus,
+        endedAtUtcMs: nowMs,
+        totalActiveSec: totalActiveSec,
+        totalPausedSec: totalPausedSec,
+        segments: finalizeSegments,
+        updatedAtUtcMs: nowMs,
+      ),
+    );
+  }
+
+  /// Persist Lanjutkan append rows and mark [activeSegmentId] active.
+  Future<void> appendAndStart({
+    required String sessionId,
+    required List<CreateSegmentInput> newSegments,
+    required int? pomodoroCyclesTarget,
+    required String activeSegmentId,
+    required TimerEngineState state,
+    required int totalActiveSec,
+    required int totalPausedSec,
+  }) async {
+    await _sessionRepository.appendSegments(
+      sessionId,
+      newSegments,
+      pomodoroCyclesTarget: pomodoroCyclesTarget,
+    );
+    final nowMs = _clock.nowUtc().millisecondsSinceEpoch;
+    await _markSegmentStarted(
+      sessionId: sessionId,
+      segmentId: activeSegmentId,
+      state: state,
+      totalActiveSec: totalActiveSec,
+      totalPausedSec: totalPausedSec,
+      nowMs: nowMs,
+    );
+  }
+
+  String? _segmentIdAt(List<String> segmentIds, int index) {
+    if (index < 0 || index >= segmentIds.length) {
+      return null;
+    }
+    return segmentIds[index];
   }
 
   Future<void> _markSegmentStarted({

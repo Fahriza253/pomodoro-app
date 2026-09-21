@@ -173,12 +173,15 @@ class SessionLifecycle {
       );
     }).toList();
     _segmentIds = [..._segmentIds, ...newInputs.map((s) => s.id)];
-    await _sessionRepository.appendSegments(
-      _sessionId!,
-      newInputs,
+    await _segmentWriter.appendAndStart(
+      sessionId: _sessionId!,
+      newSegments: newInputs,
       pomodoroCyclesTarget: after.pomodoroCyclesTarget,
+      activeSegmentId: _segmentIds[after.currentSegmentIndex],
+      state: after,
+      totalActiveSec: totalActiveSec(after),
+      totalPausedSec: totalPausedSec(after),
     );
-    await _markCurrentSegmentStarted();
     await _persistAfterCommand(before, PersistReason.segmentTransition);
     return _result(before);
   }
@@ -538,30 +541,6 @@ class SessionLifecycle {
     await persistActiveState(reason);
   }
 
-  // ponytail: Lanjutkan still marks active here; ticket 02 moves append+start
-  // onto SessionSegmentWriter.appendAndStart.
-  Future<void> _markCurrentSegmentStarted() async {
-    final state = _engine.currentState;
-    final index = state.currentSegmentIndex;
-    if (index < 0 || index >= _segmentIds.length || _sessionId == null) {
-      return;
-    }
-    final nowMs = _clock.nowUtc().millisecondsSinceEpoch;
-    await _sessionRepository.updateSegmentProgress(
-      UpdateSegmentInput(
-        sessionId: _sessionId!,
-        segmentId: _segmentIds[index],
-        segmentStatus: SegmentStatus.active,
-        startedAtUtcMs: nowMs,
-        pomodoroFocusCount: state.pomodoroFocusCount,
-        pomodoroCyclesCompleted: state.pomodoroCyclesCompleted,
-        totalActiveSec: totalActiveSec(state),
-        totalPausedSec: totalPausedSec(state),
-        updatedAtUtcMs: nowMs,
-      ),
-    );
-  }
-
   Future<void> _discardActiveSession() async {
     if (_sessionId == null) {
       return;
@@ -575,61 +554,14 @@ class SessionLifecycle {
     if (_sessionId == null) {
       return;
     }
-    final now = _clock.nowUtc();
-    final nowMs = now.millisecondsSinceEpoch;
     final state = _engine.currentState;
-    final dbSegments = await _sessionRepository.getSegmentsBySessionId(
-      _sessionId!,
-    );
-    final currentId = _currentSegmentId();
-
-    final finalizeSegments = dbSegments.map((dbSeg) {
-      final isCurrent = dbSeg.id == currentId;
-      var status = dbSeg.segmentStatus;
-      var actual = dbSeg.actualSec;
-      var ended = dbSeg.endedAtUtcMs;
-
-      if (isCurrent && status != SegmentStatus.completed) {
-        if (terminalStatus == SessionStatus.completed) {
-          status = SegmentStatus.completed;
-          actual = state.isFlexible
-              ? state.elapsedActiveSecAt(now)
-              : (state.currentSegment?.plannedSec ?? dbSeg.plannedSec);
-        } else {
-          // Abandoned / failed: keep elapsed active time for Timeline + stats.
-          status = SegmentStatus.completed;
-          actual = state.currentSegmentElapsedActiveSecAt(now);
-        }
-        ended = nowMs;
-      } else if (terminalStatus != SessionStatus.completed &&
-          (status == SegmentStatus.pending || status == SegmentStatus.active)) {
-        status = SegmentStatus.skipped;
-        actual = 0;
-        ended = nowMs;
-      }
-
-      return FinalizeSegmentInput(
-        segmentId: dbSeg.id,
-        actualSec: actual,
-        segmentPausedSec: isCurrent
-            ? state.segmentPausedSec
-            : dbSeg.segmentPausedSec,
-        segmentStatus: status,
-        startedAtUtcMs: dbSeg.startedAtUtcMs,
-        endedAtUtcMs: ended ?? (status == SegmentStatus.pending ? null : nowMs),
-      );
-    }).toList();
-
-    await _sessionRepository.finalizeSession(
-      FinalizeSessionInput(
-        sessionId: _sessionId!,
-        terminalStatus: terminalStatus,
-        endedAtUtcMs: nowMs,
-        totalActiveSec: totalActiveSec(state),
-        totalPausedSec: totalPausedSec(state),
-        segments: finalizeSegments,
-        updatedAtUtcMs: nowMs,
-      ),
+    await _segmentWriter.writeTerminal(
+      sessionId: _sessionId!,
+      segmentIds: _segmentIds,
+      state: state,
+      terminalStatus: terminalStatus,
+      totalActiveSec: totalActiveSec(state),
+      totalPausedSec: totalPausedSec(state),
     );
   }
 
