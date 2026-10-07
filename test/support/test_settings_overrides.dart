@@ -38,7 +38,7 @@ Tag testGeneralTag({int updatedAtUtcMs = 1}) {
   return Tag(
     id: 'test-general-tag',
     name: 'General',
-    color: '#6366F1',
+    color: '#2C638B',
     sortOrder: 0,
     createdAtUtcMs: updatedAtUtcMs,
     updatedAtUtcMs: updatedAtUtcMs,

@@ -11,6 +11,7 @@ import 'package:pomodoro_app/platform/notifications/notification_adapter_io.dart
 import 'package:pomodoro_app/platform/notifications/notification_deep_link.dart';
 import 'package:pomodoro_app/presentation/l10n/locale_providers.dart';
 import 'package:pomodoro_app/presentation/settings/settings_providers.dart';
+import 'package:pomodoro_app/app/theme/app_theme.dart';
 import 'package:pomodoro_app/presentation/splash/database_error_screen.dart';
 import 'package:pomodoro_app/presentation/splash/splash_screen.dart';
 import 'package:pomodoro_app/presentation/timer/timer_lifecycle_observer.dart';
@@ -31,10 +32,7 @@ class PomodoroApp extends ConsumerWidget {
           // System locale (no hardcoded EN).
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          theme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(seedColor: SplashScreen.seed),
-            useMaterial3: true,
-          ),
+          theme: AppThemeData.light(),
           home: const SplashScreen(),
         ),
         error: (_, _) => DatabaseErrorScreen(
@@ -63,17 +61,8 @@ class PomodoroApp extends ConsumerWidget {
               localizationsDelegates: AppLocalizations.localizationsDelegates,
               supportedLocales: AppLocalizations.supportedLocales,
               themeMode: themeMode,
-              theme: ThemeData(
-                colorScheme: ColorScheme.fromSeed(seedColor: SplashScreen.seed),
-                useMaterial3: true,
-              ),
-              darkTheme: ThemeData(
-                colorScheme: ColorScheme.fromSeed(
-                  seedColor: SplashScreen.seed,
-                  brightness: Brightness.dark,
-                ),
-                useMaterial3: true,
-              ),
+              theme: AppThemeData.light(),
+              darkTheme: AppThemeData.dark(),
               routerConfig: router,
             ),
           );

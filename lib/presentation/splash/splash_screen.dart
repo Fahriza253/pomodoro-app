@@ -6,30 +6,34 @@ import 'package:flutter/material.dart';
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
 
-  static const seed = Color(0xFF6366F1);
-
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    final scheme = Theme.of(context).colorScheme;
+    return Scaffold(
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Image(
+            const Image(
               image: AssetImage('assets/icon/icon.png'),
               width: 72,
               height: 72,
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             Text(
               'Pomodoro',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
             ),
-            SizedBox(height: 32),
+            const SizedBox(height: 32),
             SizedBox(
               width: 24,
               height: 24,
-              child: CircularProgressIndicator(strokeWidth: 2.5, color: seed),
+              child: CircularProgressIndicator(
+                strokeWidth: 2.5,
+                color: scheme.primary,
+              ),
             ),
           ],
         ),

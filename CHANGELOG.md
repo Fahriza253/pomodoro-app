@@ -5,6 +5,48 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.3.0] — 2026-10-07
+
+### Added
+
+- App-wide **Light** / **Dark** / **System** theming with Material 3 (`AppTheme`, persisted in Settings)
+- Pomodoro **3-2-1 pre-start** countdown before a focus Session starts (skip supported)
+
+### Changed
+
+- Pre-start countdown is driven by `TimerCoordinator` and shown on `TimerViewState` (not presentation-only timers)
+
+### Fixed
+
+- Windows release packaging: Inno Setup installer ships with an app-local MSVC runtime so the app runs without a separate Visual C++ install
+
+### Known limitations (still true in 1.3.0)
+
+- **Manual duration backfill (UC-08)** — not shipped
+- **iOS** — still secondary / degraded vs Android (Focus Strict/Whitelist and background parity)
+- **Desktop** — secondary / degraded (in-app Alert tone only)
+- Local database is **not encrypted at rest** (see [PRIVACY.md](PRIVACY.md))
+- **Haptic alert** — still unreliable in foreground and background
+
+## [1.2.0] — 2026-09-30
+
+### Added
+
+- Session complete celebration for Pomodoro: animated “You did it!” screen with **Start New Session** (same Tag, latest config) or **Back to Home**
+- Linux and Windows desktop builds (secondary target) — data stored in the platform app-data folder; no OS notifications, keep-screen-on, or Focus monitoring on desktop
+
+### Changed
+
+- Timer internals restructured for reliability (session lifecycle, side effects, and Segment writes split into separate components); no behaviour change intended
+
+### Known limitations (still true in 1.2.0)
+
+- **Manual duration backfill (UC-08)** — not shipped
+- **iOS** — still secondary / degraded vs Android (Focus Strict/Whitelist and background parity)
+- **Desktop** — secondary / degraded (in-app Alert tone only)
+- Local database is **not encrypted at rest** (see [PRIVACY.md](PRIVACY.md))
+- **Haptic alert** — still unreliable in foreground and background
+
 ## [1.1.0] — 2026-09-05
 
 ### Fixed

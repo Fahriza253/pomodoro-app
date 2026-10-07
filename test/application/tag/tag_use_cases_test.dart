@@ -71,7 +71,7 @@ void main() {
         UpdateTagInput(
           id: seededGeneralId,
           name: 'General Renamed',
-          color: '#6366F1',
+          color: '#2C638B',
           pomodoro: TagModeConfigPomodoro.defaults(),
           flexible: TagModeConfigFlexible.defaults(),
         ),

@@ -4,7 +4,8 @@ import 'package:pomodoro_app/data/database/converters/json_converters.dart';
 class Tags extends Table {
   TextColumn get id => text()();
   TextColumn get name => text().withLength(min: 1, max: 64)();
-  TextColumn get color => text().withDefault(const Constant('#6366F1'))();
+  // Keep in sync with AppThemeData.defaultTagColorHex (lib/app/theme/app_theme.dart).
+  TextColumn get color => text().withDefault(const Constant('#2C638B'))();
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();
   IntColumn get deletedAt => integer().nullable()();
   IntColumn get createdAt => integer()();

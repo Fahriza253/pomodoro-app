@@ -12,6 +12,7 @@ import 'package:pomodoro_app/domain/tag/tag_inputs.dart';
 import 'package:pomodoro_app/platform/audio/alert_sound_adapter_stub.dart';
 import 'package:pomodoro_app/platform/focus/focus_adapter.dart';
 import 'package:pomodoro_app/platform/notifications/running_timer_notification.dart';
+import 'package:fake_async/fake_async.dart';
 import 'package:test/test.dart';
 
 import '../../platform/notifications/recording_notification_adapter.dart';
@@ -81,6 +82,40 @@ void main() {
 
     tearDown(() {
       stack.dispose();
+    });
+
+    group('Pomodoro pre-start', () {
+      test('beginPomodoroStart counts down then starts session', () {
+        fakeAsync((async) {
+          final begin = coordinator.beginPomodoroStart(stack.tagId);
+          expect(begin.isOk, isTrue);
+          expect(coordinator.currentViewState.preStartCountdown, 3);
+          expect(coordinator.hasActiveSession, isFalse);
+
+          async.elapse(const Duration(seconds: 1));
+          expect(coordinator.currentViewState.preStartCountdown, 2);
+          async.elapse(const Duration(seconds: 1));
+          expect(coordinator.currentViewState.preStartCountdown, 1);
+          async.elapse(const Duration(seconds: 1));
+          async.flushMicrotasks();
+          expect(coordinator.currentViewState.phase, EnginePhase.running);
+          expect(coordinator.hasActiveSession, isTrue);
+          expect(coordinator.currentViewState.preStartCountdown, isNull);
+        });
+      });
+
+      test('skipPreStartAndLaunch starts without waiting', () async {
+        coordinator.beginPomodoroStart(stack.tagId);
+        final result = await coordinator.skipPreStartAndLaunch();
+        expect(result.isOk, isTrue);
+        expect(coordinator.currentViewState.phase, EnginePhase.running);
+      });
+
+      test('cancelPreStart returns to idle chrome', () {
+        coordinator.beginPomodoroStart(stack.tagId);
+        coordinator.cancelPreStart();
+        expect(coordinator.currentViewState.isPreStart, isFalse);
+      });
     });
 
     Future<void> shortFocusTag({bool autoStartBreak = false}) async {

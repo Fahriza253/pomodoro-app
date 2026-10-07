@@ -40,9 +40,6 @@ class _TimerScreenState extends ConsumerState<TimerScreen> {
   Timer? _tickTimer;
   bool _recoveryDialogShown = false;
   bool _deepLinkHandled = false;
-  int _preStartGeneration = 0;
-  bool _isFinishingPreStart = false;
-
   @override
   void initState() {
     super.initState();
@@ -74,11 +71,6 @@ class _TimerScreenState extends ConsumerState<TimerScreen> {
         return;
       }
       _syncTickTimer(state);
-      if (state.phase == EnginePhase.running ||
-          state.phase == EnginePhase.paused) {
-        ref.read(timerUiProvider.notifier).clearPreStart();
-        _isFinishingPreStart = false;
-      }
       if (state.showRecoveryPrompt && !_recoveryDialogShown) {
         _maybeShowRecoveryDialog();
       }
@@ -144,7 +136,7 @@ class _TimerScreenState extends ConsumerState<TimerScreen> {
   }
 
   String _timerBodyKey(TimerViewState view, TimerUiState ui) {
-    if (ui.isPreStart && view.phase == EnginePhase.idle) {
+    if (view.isPreStart && view.phase == EnginePhase.idle) {
       return 'prestart';
     }
     // Keep running/paused on one key so the pause↔resume icon can animate
@@ -156,10 +148,10 @@ class _TimerScreenState extends ConsumerState<TimerScreen> {
   }
 
   Widget _buildTimerBody(TimerViewState view, TimerUiState ui) {
-    if (ui.isPreStart && view.phase == EnginePhase.idle) {
+    if (view.isPreStart && view.phase == EnginePhase.idle) {
       return _PreStartBody(
-        countdown: ui.preStartCountdown!,
-        onSkip: () => _finishPreStart(skipCountdown: true),
+        countdown: view.preStartCountdown!,
+        onSkip: _skipPreStart,
       );
     }
 
@@ -192,10 +184,11 @@ class _TimerScreenState extends ConsumerState<TimerScreen> {
       return;
     }
     if (ui.selectedMode == TimerMode.pomodoro) {
-      _preStartGeneration++;
-      _isFinishingPreStart = false;
-      ref.read(timerUiProvider.notifier).startPreStartCountdown();
-      _preStartTick(_preStartGeneration);
+      await runTimerAction(
+        context,
+        ref,
+        () async => ref.read(timerCoordinatorProvider).beginPomodoroStart(tagId),
+      );
       return;
     }
     await runTimerAction(
@@ -205,66 +198,12 @@ class _TimerScreenState extends ConsumerState<TimerScreen> {
     );
   }
 
-  void _preStartTick(int generation) {
-    Future<void> tick() async {
-      if (!mounted || generation != _preStartGeneration) {
-        return;
-      }
-      final ui = ref.read(timerUiProvider);
-      if (!ui.isPreStart) {
-        return;
-      }
-      if (ui.preStartCountdown == 0) {
-        await _finishPreStart(skipCountdown: false);
-        return;
-      }
-      await Future<void>.delayed(const Duration(seconds: 1));
-      if (!mounted || generation != _preStartGeneration) {
-        return;
-      }
-      ref.read(timerUiProvider.notifier).tickPreStart();
-      final after = ref.read(timerUiProvider);
-      if (after.preStartCountdown == 0) {
-        await _finishPreStart(skipCountdown: false);
-      } else if (after.isPreStart) {
-        tick();
-      }
-    }
-
-    tick();
-  }
-
-  Future<void> _finishPreStart({required bool skipCountdown}) async {
-    if (_isFinishingPreStart) {
-      return;
-    }
-    _isFinishingPreStart = true;
-    _preStartGeneration++;
-
-    final uiNotifier = ref.read(timerUiProvider.notifier);
-    if (skipCountdown) {
-      uiNotifier.markPreStartLaunching();
-    }
-
-    final tagId = ref.read(timerUiProvider).selectedTagId;
-    if (tagId == null) {
-      _isFinishingPreStart = false;
-      uiNotifier.clearPreStart();
-      return;
-    }
-
-    final ok = await runTimerAction(
+  Future<void> _skipPreStart() async {
+    await runTimerAction(
       context,
       ref,
-      () => ref.read(timerCoordinatorProvider).startPomodoro(tagId),
+      () => ref.read(timerCoordinatorProvider).skipPreStartAndLaunch(),
     );
-    if (!mounted) {
-      return;
-    }
-    if (ok) {
-      uiNotifier.clearPreStart();
-    }
-    _isFinishingPreStart = false;
   }
 
   void _handleDeepLink() {

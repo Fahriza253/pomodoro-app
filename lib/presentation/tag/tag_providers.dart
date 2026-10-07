@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pomodoro_app/app/theme/app_theme.dart';
 import 'package:pomodoro_app/app/providers.dart';
 import 'package:pomodoro_app/application/tag/tag_use_cases.dart';
 import 'package:pomodoro_app/domain/tag/debug_short_tag.dart';
@@ -35,7 +36,7 @@ final tagFormProvider =
 
 /// Preset tag colors for the form UI.
 const tagColorPresets = [
-  '#6366F1',
+  AppThemeData.defaultTagColorHex,
   '#3B82F6',
   '#10B981',
   '#F59E0B',

@@ -38,7 +38,7 @@ class $TagsTable extends Tags with TableInfo<$TagsTable, Tag> {
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultValue: const Constant('#6366F1'),
+    defaultValue: const Constant('#2C638B'),
   );
   static const VerificationMeta _sortOrderMeta = const VerificationMeta(
     'sortOrder',

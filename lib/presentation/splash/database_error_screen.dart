@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pomodoro_app/app/theme/app_theme.dart';
 import 'package:pomodoro_app/l10n/app_localizations.dart';
 import 'package:pomodoro_app/presentation/l10n/l10n_extensions.dart';
 
@@ -10,8 +11,6 @@ class DatabaseErrorScreen extends StatelessWidget {
 
   final VoidCallback onRetry;
 
-  static const _seed = Color(0xFF6366F1);
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -19,10 +18,7 @@ class DatabaseErrorScreen extends StatelessWidget {
       locale: const Locale('en'),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: _seed),
-        useMaterial3: true,
-      ),
+      theme: AppThemeData.light(),
       home: _DatabaseErrorBody(onRetry: onRetry),
     );
   }
@@ -67,7 +63,7 @@ class _DatabaseErrorBody extends StatelessWidget {
                     l10n.databaseNotReadyBody,
                     textAlign: TextAlign.center,
                     style: textTheme.bodyMedium?.copyWith(
-                      color: const Color(0xFF6B7280),
+                      color: scheme.onSurfaceVariant,
                       height: 1.4,
                     ),
                   ),

@@ -29,9 +29,9 @@ class TimerCoordinator {
   TimerCoordinator({
     required SessionLifecycle sessionLifecycle,
     required TimerSideEffectHub sideEffectHub,
-    required SettingsRepository this._settingsRepository,
-    required FocusAdapter this._focusAdapter,
-    required ClockAdapter this._clock,
+    required this._settingsRepository,
+    required this._focusAdapter,
+    required this._clock,
   }) : _lifecycle = sessionLifecycle,
        _hub = sideEffectHub {
     _focusSubscription = _focusAdapter.watchViolations().listen((_) {
@@ -51,6 +51,11 @@ class TimerCoordinator {
 
   ActiveTimerState? _pendingRecovery;
   bool _showRecoveryPrompt = false;
+
+  String? _preStartTagId;
+  int? _preStartCountdown;
+  Timer? _preStartTimer;
+  bool _isLaunchingAfterPreStart = false;
 
   /// App is interactive — prefer in-app tone over OS tray for segment end.
   bool _isInForeground = true;
@@ -81,7 +86,68 @@ class TimerCoordinator {
     _emitViewState();
   }
 
+  /// Pomodoro UC-01: 3-2-1 countdown then [startPomodoro].
+  AppResult<void> beginPomodoroStart(String tagId) {
+    if (_lifecycle.currentState.phase != EnginePhase.idle) {
+      return err(
+        const ValidationError(
+          code: 'TIMER_INVALID_TRANSITION',
+          message: 'Aksi tidak dapat dilakukan pada state timer saat ini.',
+        ),
+      );
+    }
+    if (hasActiveSession) {
+      return err(
+        const ConflictError(
+          code: 'TIMER_ACTIVE_SESSION',
+          message: 'Sesi timer sedang berjalan. Selesaikan atau hentikan dulu.',
+        ),
+      );
+    }
+    if (_preStartCountdown != null) {
+      return err(
+        const ValidationError(
+          code: 'TIMER_PRESTART_ACTIVE',
+          message: 'Hitungan mundur sudah berjalan.',
+        ),
+      );
+    }
+    _preStartTagId = tagId;
+    _preStartCountdown = 3;
+    _isLaunchingAfterPreStart = false;
+    _startPreStartTimer();
+    _emitViewState();
+    return ok();
+  }
+
+  void cancelPreStart() {
+    if (_preStartCountdown == null) {
+      return;
+    }
+    _clearPreStart();
+    _emitViewState();
+  }
+
+  Future<AppResult<void>> skipPreStartAndLaunch() async {
+    if (_preStartTagId == null || _preStartCountdown == null) {
+      return err(
+        const ValidationError(
+          code: 'TIMER_INVALID_TRANSITION',
+          message: 'Tidak ada hitungan mundur aktif.',
+        ),
+      );
+    }
+    return _runAsync(() async {
+    _preStartTimer?.cancel();
+    _preStartTimer = null;
+    _preStartCountdown = 0;
+    _emitViewState();
+    await _launchAfterPreStart();
+    });
+  }
+
   Future<AppResult<void>> startPomodoro(String tagId) => _runAsync(() async {
+    _clearPreStart();
     final result = await _lifecycle.startPomodoro(tagId);
     await _syncSideEffects(result);
     _emitViewState();
@@ -225,10 +291,62 @@ class TimerCoordinator {
   }
 
   void dispose() {
+    _preStartTimer?.cancel();
+    _preStartTimer = null;
     _focusSubscription.cancel();
     // AlertSoundAdapter + SessionLifecycle lifecycles are owned by Riverpod
     // providers — do not dispose them here.
     _viewStateController.close();
+  }
+
+  void _startPreStartTimer() {
+    _preStartTimer?.cancel();
+    _preStartTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      _onPreStartTick();
+    });
+  }
+
+  void _onPreStartTick() {
+    final current = _preStartCountdown;
+    if (current == null || _isLaunchingAfterPreStart) {
+      return;
+    }
+    if (current <= 1) {
+      _preStartCountdown = 0;
+      _emitViewState();
+      unawaited(_launchAfterPreStart());
+      return;
+    }
+    _preStartCountdown = current - 1;
+    _emitViewState();
+  }
+
+  Future<void> _launchAfterPreStart() async {
+    if (_isLaunchingAfterPreStart) {
+      return;
+    }
+    _isLaunchingAfterPreStart = true;
+    _preStartTimer?.cancel();
+    _preStartTimer = null;
+    final tagId = _preStartTagId;
+    if (tagId == null) {
+      _clearPreStart();
+      _isLaunchingAfterPreStart = false;
+      _emitViewState();
+      return;
+    }
+    final result = await startPomodoro(tagId);
+    if (result.isErr) {
+      _isLaunchingAfterPreStart = false;
+    }
+  }
+
+  void _clearPreStart() {
+    _preStartTimer?.cancel();
+    _preStartTimer = null;
+    _preStartTagId = null;
+    _preStartCountdown = null;
+    _isLaunchingAfterPreStart = false;
   }
 
   Future<void> _afterTransition(LifecycleResult result) async {
@@ -348,7 +466,11 @@ class TimerCoordinator {
     final now = _clock.nowUtc();
 
     if (state.phase == EnginePhase.idle) {
-      return TimerViewState.idle(showRecoveryPrompt: _showRecoveryPrompt);
+      return TimerViewState.idle(
+        showRecoveryPrompt: _showRecoveryPrompt,
+        preStartCountdown: _preStartCountdown,
+        tagId: _preStartTagId,
+      );
     }
 
     final isCountdown = state.isPomodoro;

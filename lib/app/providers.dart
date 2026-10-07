@@ -7,12 +7,14 @@ import 'package:pomodoro_app/data/repositories/session_repository.dart';
 import 'package:pomodoro_app/data/repositories/settings_repository.dart';
 import 'package:pomodoro_app/data/repositories/tag_repository.dart';
 import 'package:pomodoro_app/domain/tag/system_tags.dart';
+import 'package:pomodoro_app/platform/storage/database_directory_stub.dart'
+    if (dart.library.io) 'package:pomodoro_app/platform/storage/database_directory_io.dart';
 
 /// Lazily opens DB, runs migrations, and seeds on first access.
 ///
 /// Errors surface as [AsyncError] → friendly retry UI in the app shell.
 final appDatabaseProvider = FutureProvider<AppDatabase>((ref) async {
-  final db = openAppDatabase();
+  final db = openAppDatabase(databaseDirectory: databaseDirectoryOverride());
   ref.onDispose(db.close);
   await DatabaseSeeder(db).seedIfNeeded();
   // QA-only: `--dart-define=DEBUG_SHORT_TAG=true` upserts reserved Debug 5s Tag.

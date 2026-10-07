@@ -49,6 +49,7 @@ final timerChromeProvider = StreamProvider<TimerViewState>((ref) async* {
 
 bool _sameChrome(TimerViewState a, TimerViewState b) =>
     a.phase == b.phase &&
+    a.preStartCountdown == b.preStartCountdown &&
     a.mode == b.mode &&
     a.tagId == b.tagId &&
     a.tagName == b.tagName &&
@@ -76,34 +77,6 @@ class TimerUiNotifier extends Notifier<TimerUiState> {
 
   void setTag(String tagId) {
     state = state.copyWith(selectedTagId: tagId);
-  }
-
-  void startPreStartCountdown() {
-    state = state.copyWith(preStartCountdown: 3);
-  }
-
-  void tickPreStart() {
-    final current = state.preStartCountdown;
-    if (current == null || current <= 0) {
-      return;
-    }
-    if (current == 1) {
-      state = state.copyWith(preStartCountdown: 0);
-    } else {
-      state = state.copyWith(preStartCountdown: current - 1);
-    }
-  }
-
-  /// Keeps pre-start UI visible while the session is being created.
-  void markPreStartLaunching() {
-    if (state.preStartCountdown == null) {
-      return;
-    }
-    state = state.copyWith(preStartCountdown: 0);
-  }
-
-  void clearPreStart() {
-    state = state.copyWith(clearPreStart: true);
   }
 }
 

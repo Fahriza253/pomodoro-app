@@ -110,7 +110,10 @@ class _TagListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = parseHexColorOr(tag.color, Colors.indigo);
+    final color = parseHexColorOr(
+      tag.color,
+      Theme.of(context).colorScheme.primary,
+    );
     return ListTile(
       leading: ReorderableDragStartListener(
         index: index,
