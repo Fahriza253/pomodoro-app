@@ -47,3 +47,5 @@ ios/Runner.xcodeproj/project.xcworkspace/xcuserdata/
 **/*.p12
 **/*.cer
 android/.kotlin/
+# Widget Preview related
+.widget_preview/

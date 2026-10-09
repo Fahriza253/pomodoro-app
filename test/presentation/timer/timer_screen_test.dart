@@ -1,4 +1,4 @@
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pomodoro_app/app/app.dart';
@@ -114,6 +114,88 @@ void main() {
       await _flushDriftWatches(tester);
     },
   );
+
+  testWidgets('Pomodoro pre-start shows countdown and skip launches session', (
+    tester,
+  ) async {
+    await _pumpIdleTimer(tester);
+
+    await tester.tap(find.text('START'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+
+    expect(find.text('3'), findsOneWidget);
+    expect(find.text('START'), findsNothing);
+    expect(find.text('Skip'), findsOneWidget);
+
+    await tester.tap(find.text('Skip'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('START'), findsNothing);
+    expect(find.byIcon(Icons.pause_rounded), findsOneWidget);
+    expect(find.text('3'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await _flushDriftWatches(tester);
+  });
+
+  testWidgets('recovery offer shows dialog without idle start actions', (
+    tester,
+  ) async {
+    final db = openAppDatabase(inMemory: true);
+    addTearDown(db.close);
+    await DatabaseSeeder(db).seedIfNeeded();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWith((ref) async => db),
+          testAppSettingsStreamOverride,
+        ],
+        child: const PomodoroApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Flexible'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('START'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    await tester.tap(find.byIcon(Icons.pause_rounded));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+    await _flushDriftWatches(tester);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWith((ref) async => db),
+          testAppSettingsStreamOverride,
+        ],
+        child: const PomodoroApp(),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('Resume previous session?'), findsOneWidget);
+    expect(find.text('START'), findsNothing);
+
+    await tester.tap(find.text('Discard'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('Resume previous session?'), findsNothing);
+    expect(find.text('START'), findsOneWidget);
+
+    await _flushDriftWatches(tester);
+  });
 }
 
 Future<AppDatabase> _pumpIdleTimer(WidgetTester tester) async {

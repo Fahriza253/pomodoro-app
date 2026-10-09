@@ -6,6 +6,7 @@ import 'package:lottie/lottie.dart';
 import 'package:pomodoro_app/app/timer_providers.dart';
 import 'package:pomodoro_app/application/timer/notification_strings.dart';
 import 'package:pomodoro_app/application/timer/segment_end_copy.dart';
+import 'package:pomodoro_app/application/timer/timer_flow_state.dart';
 import 'package:pomodoro_app/application/timer/timer_view_state.dart';
 import 'package:pomodoro_app/domain/common/enums.dart';
 import 'package:pomodoro_app/presentation/l10n/l10n_extensions.dart';
@@ -45,7 +46,10 @@ class _TimerScreenState extends ConsumerState<TimerScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _handleDeepLink();
-      _maybeShowRecoveryDialog();
+      final flow = ref.read(timerFlowStateProvider).valueOrNull;
+      if (flow is TimerRecoveryOfferFlow) {
+        unawaited(_maybeShowRecoveryDialog(flow));
+      }
     });
   }
 
@@ -58,7 +62,8 @@ class _TimerScreenState extends ConsumerState<TimerScreen> {
   @override
   Widget build(BuildContext context) {
     ref.watch(timerDefaultTagProvider);
-    // Chrome stream skips per-second ticks; full stream kept for tick sync + listen.
+    // Flow chrome skips active display ticks; legacy chrome for active phase UI.
+    final flowChromeAsync = ref.watch(timerFlowChromeProvider);
     final chromeAsync = ref.watch(timerChromeProvider);
     final ui = ref.watch(timerUiProvider);
 
@@ -71,26 +76,42 @@ class _TimerScreenState extends ConsumerState<TimerScreen> {
         return;
       }
       _syncTickTimer(state);
-      if (state.showRecoveryPrompt && !_recoveryDialogShown) {
-        _maybeShowRecoveryDialog();
+    });
+
+    ref.listen<AsyncValue<TimerFlowState>>(timerFlowStateProvider, (
+      prev,
+      next,
+    ) {
+      final flow = next.valueOrNull;
+      if (flow is TimerRecoveryOfferFlow && !_recoveryDialogShown) {
+        unawaited(_maybeShowRecoveryDialog(flow));
       }
     });
 
     final l10n = context.l10n;
     final phase = chromeAsync.valueOrNull?.phase;
     final softComplete = phase == EnginePhase.sessionComplete;
+    final flowChrome = flowChromeAsync.valueOrNull;
+    final inPreStart = flowChrome is TimerPomodoroPreStartFlow;
     return PopScope(
-      canPop: !softComplete,
+      canPop: !softComplete && !inPreStart,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) {
           return;
         }
-        // Leaving soft session-complete without LANJUTKAN = Done.
-        await runTimerAction(
-          context,
-          ref,
-          () => ref.read(timerCoordinatorProvider).dismissSessionComplete(),
-        );
+        if (softComplete) {
+          // Leaving soft session-complete without LANJUTKAN = Done.
+          await runTimerAction(
+            context,
+            ref,
+            () => ref.read(timerCoordinatorProvider).dismissSessionComplete(),
+          );
+          return;
+        }
+        final flow = ref.read(timerFlowChromeProvider).valueOrNull;
+        if (flow is TimerPomodoroPreStartFlow && flow.actions.canCancel) {
+          ref.read(timerCoordinatorProvider).cancelPreStart();
+        }
       },
       child: Scaffold(
         appBar: AppBar(
@@ -102,30 +123,23 @@ class _TimerScreenState extends ConsumerState<TimerScreen> {
                 icon: const Icon(Icons.notifications_active_outlined),
                 onPressed: () => showAlertControlsSheet(context),
               ),
-            if (chromeAsync.valueOrNull?.phase == EnginePhase.running)
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Center(
-                  child: Icon(
-                    Icons.brightness_high_outlined,
-                    size: 18,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ),
-              ),
           ],
         ),
-        body: chromeAsync.when(
+        body: flowChromeAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (_, _) => Center(child: Text(l10n.timerLoadStateFailed)),
-          data: (view) {
-            final body = _buildTimerBody(view, ui);
+          data: (flow) {
+            final view = chromeAsync.valueOrNull;
+            if (view == null) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final body = _buildTimerBody(flow, view, ui);
             return AnimatedSwitcher(
               duration: const Duration(milliseconds: 220),
               switchInCurve: Curves.easeOut,
               switchOutCurve: Curves.easeIn,
               child: KeyedSubtree(
-                key: ValueKey(_timerBodyKey(view, ui)),
+                key: ValueKey(_timerBodyKey(flow, view)),
                 child: body,
               ),
             );
@@ -135,32 +149,41 @@ class _TimerScreenState extends ConsumerState<TimerScreen> {
     );
   }
 
-  String _timerBodyKey(TimerViewState view, TimerUiState ui) {
-    if (view.isPreStart && view.phase == EnginePhase.idle) {
-      return 'prestart';
-    }
-    // Keep running/paused on one key so the pause↔resume icon can animate
-    // without remounting the whole active timer body.
-    if (view.phase == EnginePhase.running || view.phase == EnginePhase.paused) {
-      return 'active';
-    }
-    return view.phase.name;
+  String _timerBodyKey(TimerFlowState flow, TimerViewState view) {
+    return switch (flow) {
+      TimerPomodoroPreStartFlow() => 'prestart',
+      TimerIdleSetupFlow() => 'idle',
+      TimerRecoveryOfferFlow() => 'recovery',
+      _ => switch (view.phase) {
+        EnginePhase.running || EnginePhase.paused => 'active',
+        _ => view.phase.name,
+      },
+    };
   }
 
-  Widget _buildTimerBody(TimerViewState view, TimerUiState ui) {
-    if (view.isPreStart && view.phase == EnginePhase.idle) {
-      return _PreStartBody(
-        countdown: view.preStartCountdown!,
-        onSkip: _skipPreStart,
-      );
-    }
-
-    return switch (view.phase) {
-      EnginePhase.idle => _IdleBody(view: view, onStart: _onStartPressed),
-      EnginePhase.running => _ActiveBody(view: view, isPaused: false),
-      EnginePhase.paused => _ActiveBody(view: view, isPaused: true),
-      EnginePhase.segmentComplete => _SegmentCompleteBody(view: view),
-      EnginePhase.sessionComplete => _SessionCompleteBody(view: view),
+  Widget _buildTimerBody(
+    TimerFlowState flow,
+    TimerViewState view,
+    TimerUiState ui,
+  ) {
+    return switch (flow) {
+      TimerIdleSetupFlow(:final actions) => _IdleBody(
+        canStartSession: actions.canStartSession,
+        onStart: _onStartPressed,
+      ),
+      TimerPomodoroPreStartFlow(:final countdownSeconds, :final actions) =>
+        _PreStartBody(
+          countdown: countdownSeconds,
+          onSkip: actions.canSkip ? _skipPreStart : null,
+        ),
+      TimerRecoveryOfferFlow() => const _RecoveryOfferPlaceholder(),
+      _ => switch (view.phase) {
+        EnginePhase.running => _ActiveBody(view: view, isPaused: false),
+        EnginePhase.paused => _ActiveBody(view: view, isPaused: true),
+        EnginePhase.segmentComplete => _SegmentCompleteBody(view: view),
+        EnginePhase.sessionComplete => _SessionCompleteBody(view: view),
+        EnginePhase.idle => const _RecoveryOfferPlaceholder(),
+      },
     };
   }
 
@@ -221,16 +244,18 @@ class _TimerScreenState extends ConsumerState<TimerScreen> {
     }
   }
 
-  Future<void> _maybeShowRecoveryDialog() async {
-    final view = ref.read(timerViewStateProvider).valueOrNull;
-    if (view == null || !view.showRecoveryPrompt || _recoveryDialogShown) {
+  Future<void> _maybeShowRecoveryDialog(TimerRecoveryOfferFlow offer) async {
+    if (_recoveryDialogShown) {
       return;
     }
     _recoveryDialogShown = true;
     await RecoveryDialog.showIfNeeded(
       context,
-      show: true,
+      show: offer.actions.canResume || offer.actions.canDecline,
       onResume: () async {
+        if (!offer.actions.canResume) {
+          return;
+        }
         await runTimerAction(
           context,
           ref,
@@ -238,6 +263,9 @@ class _TimerScreenState extends ConsumerState<TimerScreen> {
         );
       },
       onDecline: () async {
+        if (!offer.actions.canDecline) {
+          return;
+        }
         await runTimerAction(
           context,
           ref,
@@ -249,10 +277,20 @@ class _TimerScreenState extends ConsumerState<TimerScreen> {
   }
 }
 
-class _IdleBody extends ConsumerWidget {
-  const _IdleBody({required this.view, required this.onStart});
+/// Recovery is a modal flow — keep idle setup chrome off the stack underneath.
+class _RecoveryOfferPlaceholder extends StatelessWidget {
+  const _RecoveryOfferPlaceholder();
 
-  final TimerViewState view;
+  @override
+  Widget build(BuildContext context) {
+    return const SizedBox.shrink();
+  }
+}
+
+class _IdleBody extends ConsumerWidget {
+  const _IdleBody({required this.canStartSession, required this.onStart});
+
+  final bool canStartSession;
   final VoidCallback onStart;
 
   @override
@@ -311,7 +349,7 @@ class _IdleBody extends ConsumerWidget {
       ),
       footer: TimerButtonSlot(
         child: FilledButton(
-          onPressed: ui.selectedTagId == null ? null : onStart,
+          onPressed: canStartSession && ui.selectedTagId != null ? onStart : null,
           style: FilledButton.styleFrom(
             minimumSize: const Size(double.infinity, 52),
             padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
@@ -324,10 +362,10 @@ class _IdleBody extends ConsumerWidget {
 }
 
 class _PreStartBody extends StatelessWidget {
-  const _PreStartBody({required this.countdown, required this.onSkip});
+  const _PreStartBody({required this.countdown, this.onSkip});
 
   final int countdown;
-  final VoidCallback onSkip;
+  final VoidCallback? onSkip;
 
   bool get _isLaunching => countdown <= 0;
 
@@ -339,7 +377,7 @@ class _PreStartBody extends StatelessWidget {
         style: Theme.of(context).textTheme.displayLarge,
         textAlign: TextAlign.center,
       ),
-      footer: _isLaunching
+      footer: _isLaunching || onSkip == null
           ? null
           : TimerButtonSlot(
               child: TextButton(

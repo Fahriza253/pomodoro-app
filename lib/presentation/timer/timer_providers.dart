@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pomodoro_app/app/providers.dart';
 import 'package:pomodoro_app/app/timer_providers.dart';
 import 'package:pomodoro_app/application/timer/timer_coordinator.dart';
+import 'package:pomodoro_app/application/timer/timer_flow_change.dart';
+import 'package:pomodoro_app/application/timer/timer_flow_state.dart';
 import 'package:pomodoro_app/application/timer/timer_view_state.dart';
 import 'package:pomodoro_app/domain/common/enums.dart';
 import 'package:pomodoro_app/domain/tag/tag_mode_config.dart';
@@ -13,11 +15,23 @@ final timerViewStateProvider = StreamProvider<TimerViewState>((ref) {
   return _seededViewStateStream(coordinator);
 });
 
+final timerFlowStateProvider = StreamProvider<TimerFlowState>((ref) {
+  final coordinator = ref.watch(timerCoordinatorProvider);
+  return _seededFlowStateStream(coordinator);
+});
+
 Stream<TimerViewState> _seededViewStateStream(
   TimerCoordinator coordinator,
 ) async* {
   yield coordinator.currentViewState;
   yield* coordinator.viewState;
+}
+
+Stream<TimerFlowState> _seededFlowStateStream(
+  TimerCoordinator coordinator,
+) async* {
+  yield coordinator.currentFlowState;
+  yield* coordinator.flowState;
 }
 
 /// Emits only when [TimerCoordinator.hasActiveSession] flips (nav badge).
@@ -41,6 +55,19 @@ final timerChromeProvider = StreamProvider<TimerViewState>((ref) async* {
   yield last;
   await for (final next in coordinator.viewState) {
     if (!_sameChrome(last, next)) {
+      last = next;
+      yield next;
+    }
+  }
+});
+
+/// Phase/session chrome — skips per-second active display ticks.
+final timerFlowChromeProvider = StreamProvider<TimerFlowState>((ref) async* {
+  final coordinator = ref.watch(timerCoordinatorProvider);
+  var last = coordinator.currentFlowState;
+  yield last;
+  await for (final next in coordinator.flowState) {
+    if (!sameTimerFlowChrome(last, next)) {
       last = next;
       yield next;
     }

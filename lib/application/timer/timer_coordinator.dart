@@ -2,8 +2,9 @@ import 'dart:async';
 
 import 'package:pomodoro_app/application/timer/lifecycle_result.dart';
 import 'package:pomodoro_app/application/timer/notification_strings.dart';
-import 'package:pomodoro_app/application/timer/segment_end_cycle_progress.dart';
 import 'package:pomodoro_app/application/timer/persist_reason.dart';
+import 'package:pomodoro_app/application/timer/timer_flow_projection.dart';
+import 'package:pomodoro_app/application/timer/timer_flow_state.dart';
 import 'package:pomodoro_app/application/timer/session_lifecycle.dart';
 import 'package:pomodoro_app/application/timer/side_effect_context.dart';
 import 'package:pomodoro_app/application/timer/timer_side_effect_hub.dart';
@@ -14,7 +15,6 @@ import 'package:pomodoro_app/domain/common/enums.dart';
 import 'package:pomodoro_app/domain/common/result.dart';
 import 'package:pomodoro_app/domain/settings/app_settings.dart';
 import 'package:pomodoro_app/domain/timer/active_timer_state.dart';
-import 'package:pomodoro_app/domain/timer/early_stop_grace.dart';
 import 'package:pomodoro_app/domain/timer/models/timer_engine_state.dart';
 import 'package:pomodoro_app/domain/timer/timer_engine.dart';
 import 'package:pomodoro_app/domain/timer/timer_transition_error.dart';
@@ -47,6 +47,7 @@ class TimerCoordinator {
   final TimerSideEffectHub _hub;
 
   final _viewStateController = StreamController<TimerViewState>.broadcast();
+  final _flowStateController = StreamController<TimerFlowState>.broadcast();
   late final StreamSubscription<FocusViolation> _focusSubscription;
 
   ActiveTimerState? _pendingRecovery;
@@ -65,6 +66,9 @@ class TimerCoordinator {
 
   Stream<TimerViewState> get viewState => _viewStateController.stream;
   TimerViewState get currentViewState => _buildViewState();
+
+  Stream<TimerFlowState> get flowState => _flowStateController.stream;
+  TimerFlowState get currentFlowState => _buildFlowState();
 
   bool get hasActiveSession => _lifecycle.hasActiveSession;
 
@@ -297,6 +301,7 @@ class TimerCoordinator {
     // AlertSoundAdapter + SessionLifecycle lifecycles are owned by Riverpod
     // providers — do not dispose them here.
     _viewStateController.close();
+    _flowStateController.close();
   }
 
   void _startPreStartTimer() {
@@ -458,94 +463,30 @@ class TimerCoordinator {
     if (_viewStateController.isClosed) {
       return;
     }
-    _viewStateController.add(_buildViewState());
+    final projection = _projectionContext();
+    _viewStateController.add(projectTimerViewState(projection));
+    _flowStateController.add(projectTimerFlowState(projection));
   }
 
-  TimerViewState _buildViewState() {
+  TimerViewState _buildViewState() =>
+      projectTimerViewState(_projectionContext());
+
+  TimerFlowState _buildFlowState() => projectTimerFlowState(_projectionContext());
+
+  TimerProjectionContext _projectionContext() {
     final state = _lifecycle.currentState;
-    final now = _clock.nowUtc();
-
-    if (state.phase == EnginePhase.idle) {
-      return TimerViewState.idle(
-        showRecoveryPrompt: _showRecoveryPrompt,
-        preStartCountdown: _preStartCountdown,
-        tagId: _preStartTagId,
-      );
-    }
-
-    final isCountdown = state.isPomodoro;
-    final displaySec = isCountdown
-        ? state.remainingSecAt(now)
-        : state.elapsedActiveSecAt(now);
-    final activeSec = _lifecycle.totalActiveSec(state);
-    final graceRemaining =
-        (state.phase == EnginePhase.running ||
-            state.phase == EnginePhase.paused)
-        ? earlyStopGraceRemainingSec(activeSec)
-        : 0;
-
-    final endSummary = _segmentEndSummary(state);
-
-    return TimerViewState(
-      phase: state.phase,
-      mode: state.mode,
-      tagId: _lifecycle.tagId,
-      tagName: _lifecycle.tagName,
-      sessionId: _lifecycle.sessionId,
-      displaySec: displaySec,
-      isCountdown: isCountdown,
-      currentSegmentType: state.currentSegment?.type,
-      completedFocusCount: state.pomodoroFocusCount,
-      totalFocusInCycle: state.config?.sessionsBeforeLongBreak ?? 0,
-      completedCycleCount: state.isPomodoro
-          ? state.pomodoroCyclesCompleted
-          : null,
-      totalCycleTarget: state.isPomodoro ? state.pomodoroCyclesTarget : null,
+    return TimerProjectionContext(
+      engineState: state,
+      nowUtc: _clock.nowUtc(),
+      totalActiveSec: _lifecycle.totalActiveSec(state),
+      lifecycleTagId: _lifecycle.tagId,
+      lifecycleTagName: _lifecycle.tagName,
+      lifecycleSessionId: _lifecycle.sessionId,
+      hasActiveSession: hasActiveSession,
       showRecoveryPrompt: _showRecoveryPrompt,
-      currentPlannedSec: state.currentSegment?.plannedSec,
-      earlyStopGraceRemainingSec: graceRemaining,
-      segmentEndFinishedType: endSummary?.finished,
-      segmentEndNextType: endSummary?.next,
-      segmentEndCompletedCount: endSummary?.completedCount,
-      segmentEndTotalCount: endSummary?.totalCount,
-    );
-  }
-
-  ({
-    SegmentType finished,
-    SegmentType? next,
-    int completedCount,
-    int totalCount,
-  })?
-  _segmentEndSummary(TimerEngineState state) {
-    if (state.phase != EnginePhase.segmentComplete &&
-        state.phase != EnginePhase.sessionComplete) {
-      return null;
-    }
-    if (!state.isPomodoro || state.segments.isEmpty) {
-      return null;
-    }
-    final index = state.currentSegmentIndex;
-    if (index < 0 || index >= state.segments.length) {
-      return null;
-    }
-    final sessionComplete = state.phase == EnginePhase.sessionComplete;
-    final nextIndex = index + 1;
-    final nextType = !sessionComplete && nextIndex < state.segments.length
-        ? state.segments[nextIndex].type
-        : null;
-    final finished = state.segments[index].type;
-    final progress = segmentEndCycleProgress(
-      cyclesCompletedAfterSegment: state.pomodoroCyclesCompleted,
-      cyclesTarget: state.pomodoroCyclesTarget,
-      finished: finished,
-      sessionComplete: sessionComplete,
-    );
-    return (
-      finished: finished,
-      next: nextType,
-      completedCount: progress.n,
-      totalCount: progress.total,
+      pendingRecovery: _pendingRecovery,
+      preStartCountdown: _preStartCountdown,
+      preStartTagId: _preStartTagId,
     );
   }
 
