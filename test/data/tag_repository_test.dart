@@ -53,7 +53,6 @@ void main() {
       final tag = await repository.create(
         CreateTagInput(
           name: 'Study',
-          color: '#3B82F6',
           pomodoro: TagModeConfigPomodoro.defaults(),
           flexible: TagModeConfigFlexible.defaults(),
         ),
@@ -72,7 +71,6 @@ void main() {
       await repository.create(
         CreateTagInput(
           name: 'Work',
-          color: '#10B981',
           pomodoro: TagModeConfigPomodoro.defaults(),
           flexible: TagModeConfigFlexible.defaults(),
         ),
@@ -82,7 +80,6 @@ void main() {
         () => repository.create(
           CreateTagInput(
             name: 'Work',
-            color: '#10B981',
             pomodoro: TagModeConfigPomodoro.defaults(),
             flexible: TagModeConfigFlexible.defaults(),
           ),
@@ -105,7 +102,6 @@ void main() {
       final tag = await repository.create(
         CreateTagInput(
           name: 'Temp',
-          color: '#EF4444',
           pomodoro: TagModeConfigPomodoro.defaults(),
           flexible: TagModeConfigFlexible.defaults(),
         ),

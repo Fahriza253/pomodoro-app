@@ -102,14 +102,14 @@ class _AlertControlsSectionState extends ConsumerState<AlertControlsSection> {
                 ? null
                 : (v) => _save(AppSettingsPatch(alertSoundMuted: v)),
           ),
-          SwitchListTile(
-            title: Text(l10n.alertFlash),
-            subtitle: flashCapable ? null : Text(l10n.alertFlashUnsupported),
-            value: settings.alertFlashEnabled && flashCapable,
-            onChanged: !flashCapable || _saving
-                ? null
-                : (v) => _save(AppSettingsPatch(alertFlashEnabled: v)),
-          ),
+          if (flashCapable)
+            SwitchListTile(
+              title: Text(l10n.alertFlash),
+              value: settings.alertFlashEnabled,
+              onChanged: _saving
+                  ? null
+                  : (v) => _save(AppSettingsPatch(alertFlashEnabled: v)),
+            ),
         ];
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,

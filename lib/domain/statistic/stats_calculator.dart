@@ -69,7 +69,6 @@ class StatsCalculator {
         () => _TagAccumulator(
           tagId: session.tagId,
           tagName: tag?.name ?? deletedTagLabel,
-          tagColor: tag?.color ?? '#9CA3AF',
         ),
       );
       acc.sessionCount += 1;
@@ -83,7 +82,6 @@ class StatsCalculator {
               (acc) => TagBreakdown(
                 tagId: acc.tagId,
                 tagName: acc.tagName,
-                tagColor: acc.tagColor,
                 sessionCount: acc.sessionCount,
                 focusDurationSec: acc.focusDurationSec,
                 breakDurationSec: acc.breakDurationSec,
@@ -103,15 +101,10 @@ class StatsCalculator {
 }
 
 class _TagAccumulator {
-  _TagAccumulator({
-    required this.tagId,
-    required this.tagName,
-    required this.tagColor,
-  });
+  _TagAccumulator({required this.tagId, required this.tagName});
 
   final String tagId;
   final String tagName;
-  final String tagColor;
   int sessionCount = 0;
   int focusDurationSec = 0;
   int breakDurationSec = 0;

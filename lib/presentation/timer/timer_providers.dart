@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pomodoro_app/app/providers.dart';
 import 'package:pomodoro_app/app/timer_providers.dart';
 import 'package:pomodoro_app/application/timer/timer_coordinator.dart';
+import 'package:pomodoro_app/application/timer/timer_flow_change.dart';
+import 'package:pomodoro_app/application/timer/timer_flow_state.dart';
 import 'package:pomodoro_app/application/timer/timer_view_state.dart';
 import 'package:pomodoro_app/domain/common/enums.dart';
 import 'package:pomodoro_app/domain/tag/tag_mode_config.dart';
@@ -13,11 +15,23 @@ final timerViewStateProvider = StreamProvider<TimerViewState>((ref) {
   return _seededViewStateStream(coordinator);
 });
 
+final timerFlowStateProvider = StreamProvider<TimerFlowState>((ref) {
+  final coordinator = ref.watch(timerCoordinatorProvider);
+  return _seededFlowStateStream(coordinator);
+});
+
 Stream<TimerViewState> _seededViewStateStream(
   TimerCoordinator coordinator,
 ) async* {
   yield coordinator.currentViewState;
   yield* coordinator.viewState;
+}
+
+Stream<TimerFlowState> _seededFlowStateStream(
+  TimerCoordinator coordinator,
+) async* {
+  yield coordinator.currentFlowState;
+  yield* coordinator.flowState;
 }
 
 /// Emits only when [TimerCoordinator.hasActiveSession] flips (nav badge).
@@ -47,8 +61,22 @@ final timerChromeProvider = StreamProvider<TimerViewState>((ref) async* {
   }
 });
 
+/// Phase/session chrome — skips per-second active display ticks.
+final timerFlowChromeProvider = StreamProvider<TimerFlowState>((ref) async* {
+  final coordinator = ref.watch(timerCoordinatorProvider);
+  var last = coordinator.currentFlowState;
+  yield last;
+  await for (final next in coordinator.flowState) {
+    if (!sameTimerFlowChrome(last, next)) {
+      last = next;
+      yield next;
+    }
+  }
+});
+
 bool _sameChrome(TimerViewState a, TimerViewState b) =>
     a.phase == b.phase &&
+    a.preStartCountdown == b.preStartCountdown &&
     a.mode == b.mode &&
     a.tagId == b.tagId &&
     a.tagName == b.tagName &&
@@ -77,34 +105,6 @@ class TimerUiNotifier extends Notifier<TimerUiState> {
   void setTag(String tagId) {
     state = state.copyWith(selectedTagId: tagId);
   }
-
-  void startPreStartCountdown() {
-    state = state.copyWith(preStartCountdown: 3);
-  }
-
-  void tickPreStart() {
-    final current = state.preStartCountdown;
-    if (current == null || current <= 0) {
-      return;
-    }
-    if (current == 1) {
-      state = state.copyWith(preStartCountdown: 0);
-    } else {
-      state = state.copyWith(preStartCountdown: current - 1);
-    }
-  }
-
-  /// Keeps pre-start UI visible while the session is being created.
-  void markPreStartLaunching() {
-    if (state.preStartCountdown == null) {
-      return;
-    }
-    state = state.copyWith(preStartCountdown: 0);
-  }
-
-  void clearPreStart() {
-    state = state.copyWith(clearPreStart: true);
-  }
 }
 
 final timerUiProvider = NotifierProvider<TimerUiNotifier, TimerUiState>(
@@ -119,13 +119,13 @@ final selectedTagConfigProvider = FutureProvider<TagModeConfig?>((ref) async {
     return null;
   }
   // Config save updates the Tag row; re-read when the live list emits.
-  await ref.watch(tagListProvider.future);
+  await ref.watch(timerTagListProvider.future);
   return ref.watch(tagRepositoryProvider).getConfig(tagId, ui.selectedMode);
 });
 
 /// Initializes default tag when tag list loads.
 final timerDefaultTagProvider = Provider<void>((ref) {
-  final tagsAsync = ref.watch(tagListProvider);
+  final tagsAsync = ref.watch(timerTagListProvider);
   final ui = ref.watch(timerUiProvider);
   tagsAsync.whenData((tags) {
     if (tags.isNotEmpty && ui.selectedTagId == null) {

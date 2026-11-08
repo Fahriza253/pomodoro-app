@@ -30,47 +30,12 @@ PlatformCapabilitiesSnapshot buildPlatformCapabilities({
   final focus = focusAdapter.capabilities();
   final notifications = notificationAdapter.capabilities();
   final aod = aodAdapter.capabilities();
-  final notes = <PlatformDegradedNote>{};
-
-  if (notifications.initFailed) {
-    notes.add(PlatformDegradedNote.notificationInitFailed);
-  }
-
-  if (Platform.isAndroid) {
-    if (!notifications.initFailed && !notifications.scheduledSegmentEnd) {
-      notes.add(PlatformDegradedNote.androidNeedsNotificationPermission);
-    }
-  } else if (Platform.isIOS) {
-    if (!focus.strictAvailable) {
-      notes.add(PlatformDegradedNote.iosStrictBackgroundOnly);
-    }
-    notes.add(PlatformDegradedNote.iosBackgroundNotificationsBestEffort);
-  } else if (Platform.isLinux || Platform.isWindows || Platform.isMacOS) {
-    notes.add(PlatformDegradedNote.desktopFocusLimited);
-    if (!notifications.scheduledSegmentEnd) {
-      notes.add(PlatformDegradedNote.scheduledNotificationsUnreliable);
-    }
-  } else {
-    notes.add(PlatformDegradedNote.webFocusDowngradeToLoose);
-    notes.add(PlatformDegradedNote.webNotificationsNeedActiveTab);
-    if (aod.alwaysOnDisplaySupported) {
-      notes.add(PlatformDegradedNote.webAodWakeLock);
-    }
-  }
-
-  if (!focus.strictAvailable || !focus.whitelistAvailable) {
-    notes.add(PlatformDegradedNote.focusModesDegradedToLoose);
-  }
-  if (!aod.alwaysOnDisplaySupported) {
-    notes.add(PlatformDegradedNote.aodUnsupported);
-  }
-
   return PlatformCapabilitiesSnapshot(
     platformLabel: _platformLabel(),
     focus: focus,
     notifications: notifications,
     aod: aod,
-    degradedNotes: notes.toList(),
+    degradedNotes: const [],
   );
 }
 

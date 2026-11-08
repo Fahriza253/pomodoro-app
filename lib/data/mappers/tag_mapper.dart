@@ -11,7 +11,6 @@ class TagMapper {
     return Tag(
       id: row.id,
       name: row.name,
-      color: row.color,
       sortOrder: row.sortOrder,
       deletedAtUtcMs: row.deletedAt,
       createdAtUtcMs: row.createdAt,
@@ -23,7 +22,6 @@ class TagMapper {
     return db.TagsCompanion(
       id: Value(tag.id),
       name: Value(tag.name),
-      color: Value(tag.color),
       sortOrder: Value(tag.sortOrder),
       deletedAt: Value(tag.deletedAtUtcMs),
       createdAt: Value(tag.createdAtUtcMs),

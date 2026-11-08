@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pomodoro_app/presentation/shared/phosphor_icon_data.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pomodoro_app/domain/common/result.dart';
@@ -27,7 +28,6 @@ class _TagFormScreenState extends ConsumerState<TagFormScreen>
   final _nameController = TextEditingController();
   late TabController _tabController;
 
-  String _color = tagColorPresets.first;
   bool _autoStartBreak = false;
   bool _autoStartFocus = false;
   bool _reminderEnabled = true;
@@ -65,7 +65,6 @@ class _TagFormScreenState extends ConsumerState<TagFormScreen>
 
   void _applyFormData(TagFormData data) {
     _nameController.text = data.tag.name;
-    _color = data.tag.color;
     _canDelete = data.tag.name != SystemTags.generalName;
     _autoStartBreak = data.pomodoro.autoStartBreak ?? false;
     _autoStartFocus = data.pomodoro.autoStartFocus ?? false;
@@ -186,21 +185,6 @@ class _TagFormScreenState extends ConsumerState<TagFormScreen>
             ),
           ),
           const SizedBox(height: 16),
-          Text(l10n.color, style: Theme.of(context).textTheme.titleSmall),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: tagColorPresets
-                .map(
-                  (hex) => GestureDetector(
-                    onTap: () => setState(() => _color = hex),
-                    child: _colorSwatch(hex, _color == hex),
-                  ),
-                )
-                .toList(),
-          ),
-          const SizedBox(height: 16),
           TabBar(
             controller: _tabController,
             tabs: [
@@ -243,46 +227,11 @@ class _TagFormScreenState extends ConsumerState<TagFormScreen>
     );
   }
 
-  Widget _colorSwatch(String hex, bool selected) {
-    final color = _parseTagColor(hex);
-    final ringColor = Theme.of(context).colorScheme.primary;
-
-    return SizedBox(
-      width: 40,
-      height: 40,
-      child: Center(
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          curve: Curves.easeOut,
-          padding: const EdgeInsets.all(2),
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: selected ? ringColor : Colors.transparent,
-              width: 2,
-            ),
-          ),
-          child: CircleAvatar(
-            radius: 16,
-            backgroundColor: color,
-            child: selected
-                ? const Icon(Icons.check, color: Colors.white, size: 18)
-                : null,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Color _parseTagColor(String hex) {
-    return Color(int.parse('FF${hex.replaceFirst('#', '')}', radix: 16));
-  }
-
   Widget _scaffold({required Widget body}) {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(PresentationPhosphorIcons.arrowLeft),
           onPressed: () => context.pop(),
         ),
         title: Text(widget.isNew ? context.l10n.newTag : context.l10n.editTag),
@@ -483,7 +432,6 @@ class _TagFormScreenState extends ConsumerState<TagFormScreen>
       result = await useCases.createTag(
         CreateTagInput(
           name: _nameController.text,
-          color: _color,
           pomodoro: _pomodoroInput(),
           flexible: _flexibleInput(),
         ),
@@ -493,7 +441,6 @@ class _TagFormScreenState extends ConsumerState<TagFormScreen>
         UpdateTagInput(
           id: widget.tagId!,
           name: _nameController.text,
-          color: _color,
           pomodoro: _pomodoroInput(),
           flexible: _flexibleInput(),
         ),

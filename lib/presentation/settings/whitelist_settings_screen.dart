@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pomodoro_app/presentation/shared/phosphor_icon_data.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pomodoro_app/app/timer_providers.dart';
 import 'package:pomodoro_app/domain/common/result.dart';
@@ -131,7 +132,7 @@ class _WhitelistSettingsScreenState
                   padding: const EdgeInsets.all(16),
                   child: FilledButton.icon(
                     onPressed: () => _addApp(whitelist),
-                    icon: const Icon(Icons.add),
+                    icon: const Icon(PresentationPhosphorIcons.plus),
                     label: Text(l10n.addApp),
                   ),
                 ),
@@ -152,7 +153,7 @@ class _WhitelistSettingsScreenState
                                 title: Text(label),
                                 subtitle: Text(package),
                                 trailing: IconButton(
-                                  icon: const Icon(Icons.close),
+                                  icon: const Icon(PresentationPhosphorIcons.x),
                                   onPressed: () {
                                     final next = [...whitelist]
                                       ..removeAt(index);

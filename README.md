@@ -1,38 +1,38 @@
 # Pomodoro App
 
-Offline-first Pomodoro and Flexible timer for everyday focus work.
+An offline-first Pomodoro and Flexible timer for everyday focus work.
 
-**Platform (v1.0):** **Android** is the supported release target. iOS builds exist with documented degradation (Focus and background notifications). Desktop and web are not first-class in this release.
+**Platform (v1.0):** Android is the supported release target. iOS builds exist, but Focus mode and background notifications are degraded there. Desktop and web are not first-class targets in this release.
 
 ## Pillars
 
-| Pillar        | Role                                                                                                       |
-| ------------- | ---------------------------------------------------------------------------------------------------------- |
-| **Timer**     | **Pomodoro** (structured focus–rest cycles) and **Flexible** (open-ended sessions with interval reminders) |
-| **Tag**       | Context labels (Study, Work, Sport) with per-mode timer presets                                            |
-| **Statistic** | Session count and duration by period                                                                       |
-| **Timeline**  | Chronological session history by date                                                                      |
+| Pillar        | Role                                                                                                           |
+| ------------- | -------------------------------------------------------------------------------------------------------------- |
+| **Timer**     | **Pomodoro** (structured focus and rest cycles) and **Flexible** (open-ended sessions with interval reminders) |
+| **Tag**       | Context labels (Study, Work, Sport), each with its own timer presets per mode                                  |
+| **Statistic** | Session count and total duration, grouped by period                                                            |
+| **Timeline**  | Chronological session history, organized by date                                                               |
 
-## What sets it apart
+## Highlights
 
-- **Dual-mode** — Structured Pomodoro and open-ended Flexible in one app
-- **Tag-driven config** — Different presets per activity context, not one global setting
-- **Focus mode** — Strict / Whitelist / Loose on Android to cut distractions
-- **Offline-first** — Local timer and data with no internet dependency
+- Dual mode: structured Pomodoro and open-ended Flexible timers in one app.
+- Tag-driven configuration: each activity context has its own presets instead of one global setting.
+- Focus mode: Strict, Whitelist, and Loose modes on Android reduce distractions.
+- Offline-first: the timer and data work locally, with no internet dependency.
 
 ## Known limitations (v1.0)
 
-- Manual past-session backfill is not included yet (see [CHANGELOG](CHANGELOG.md))
-- iOS is secondary / best-effort compared to Android
+- Manual backfill of past sessions is not supported yet. See the [CHANGELOG](CHANGELOG.md).
+- iOS support is secondary and best-effort compared with Android.
 
-## Get started
+## Getting Started
 
-To build and run locally, see the [Build tutorial](docs/howto/build.md).
+For build and run instructions, see the [build guide](docs/HOW_TO.md).
 
 ## Privacy
 
-See [PRIVACY.md](PRIVACY.md) — local data, optional Usage Access for Focus, no telemetry in MVP.
+Sessions, tags, and settings stay on the device. This release has no account system, no required network connection, and no telemetry. On Android, Usage Access is optional and needed only for Strict or Whitelist Focus mode. Local data is not encrypted at rest.
 
 ## License
 
-[MIT](LICENSE) — Copyright (c) 2026 Dafa Fawaz.
+Released under the [MIT](LICENSE) license. Copyright (c) 2026 Dafa Fawaz.

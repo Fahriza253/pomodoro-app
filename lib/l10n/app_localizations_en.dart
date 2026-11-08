@@ -132,6 +132,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sessionCompleteTitle => 'Session complete';
 
   @override
+  String get sessionCompleteYouDidIt => 'You did it!';
+
+  @override
+  String get sessionCompleteBodyCasual =>
+      'Nice work — session done! Keep going or take a breather?';
+
+  @override
+  String get sessionCompleteBodyBrief =>
+      'Session done! Keep going or rest a bit?';
+
+  @override
+  String get sessionCompleteBodyMotivational =>
+      'Great job! Keep your rhythm or rest first?';
+
+  @override
+  String get startNewSession => 'Start New Session';
+
+  @override
+  String get backToHome => 'Back to Home';
+
+  @override
   String get sessionSavedBody =>
       'Session saved. Start again with the same tag, or return home.';
 

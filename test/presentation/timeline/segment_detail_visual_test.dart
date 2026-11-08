@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pomodoro_app/domain/common/enums.dart';
 import 'package:pomodoro_app/domain/session/session_segment.dart';
 import 'package:pomodoro_app/l10n/app_localizations.dart';
+import 'package:pomodoro_app/presentation/shared/phosphor_icon_data.dart';
 import 'package:pomodoro_app/presentation/timeline/segment_detail_visual.dart';
 
 SessionSegment _segment({
@@ -41,7 +42,7 @@ void main() {
       );
 
       expect(visual.outcome, SegmentDetailOutcome.success);
-      expect(visual.icon, Icons.check_circle_outline);
+      expect(visual.icon, PresentationPhosphorIcons.checkCircle());
     });
 
     test('completed focus with partial duration is warning', () {
@@ -56,7 +57,7 @@ void main() {
       );
 
       expect(visual.outcome, SegmentDetailOutcome.partial);
-      expect(visual.icon, Icons.warning_amber_outlined);
+      expect(visual.icon, PresentationPhosphorIcons.warningCircle());
       expect(visual.statusLabel, l10n.segmentIncomplete);
     });
 
@@ -72,7 +73,7 @@ void main() {
       );
 
       expect(visual.outcome, SegmentDetailOutcome.skipped);
-      expect(visual.icon, Icons.skip_next);
+      expect(visual.icon, PresentationPhosphorIcons.skipForward);
       expect(visual.statusLabel, l10n.segmentSkipped);
     });
 

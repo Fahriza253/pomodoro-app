@@ -20,6 +20,7 @@ void main() {
           appDatabaseProvider.overrideWith((ref) async => db),
           testAppSettingsStreamOverride,
           testTagListOverride,
+          testTimerTagListOverride,
         ],
         child: const PomodoroApp(),
       ),
@@ -30,5 +31,7 @@ void main() {
     expect(find.textContaining('General'), findsOneWidget);
     expect(find.text('START'), findsOneWidget);
     expect(find.byType(NavigationBar), findsOneWidget);
+    expect(find.byIcon(Icons.timer_outlined), findsNothing);
+    expect(find.byIcon(Icons.settings_outlined), findsNothing);
   });
 }

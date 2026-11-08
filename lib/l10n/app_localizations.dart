@@ -332,6 +332,42 @@ abstract class AppLocalizations {
   /// **'Session complete'**
   String get sessionCompleteTitle;
 
+  /// No description provided for @sessionCompleteYouDidIt.
+  ///
+  /// In en, this message translates to:
+  /// **'You did it!'**
+  String get sessionCompleteYouDidIt;
+
+  /// No description provided for @sessionCompleteBodyCasual.
+  ///
+  /// In en, this message translates to:
+  /// **'Nice work — session done! Keep going or take a breather?'**
+  String get sessionCompleteBodyCasual;
+
+  /// No description provided for @sessionCompleteBodyBrief.
+  ///
+  /// In en, this message translates to:
+  /// **'Session done! Keep going or rest a bit?'**
+  String get sessionCompleteBodyBrief;
+
+  /// No description provided for @sessionCompleteBodyMotivational.
+  ///
+  /// In en, this message translates to:
+  /// **'Great job! Keep your rhythm or rest first?'**
+  String get sessionCompleteBodyMotivational;
+
+  /// No description provided for @startNewSession.
+  ///
+  /// In en, this message translates to:
+  /// **'Start New Session'**
+  String get startNewSession;
+
+  /// No description provided for @backToHome.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to Home'**
+  String get backToHome;
+
   /// No description provided for @sessionSavedBody.
   ///
   /// In en, this message translates to:

@@ -45,13 +45,11 @@ class TagModeConfigFlexible {
 class CreateTagInput {
   const CreateTagInput({
     required this.name,
-    required this.color,
     required this.pomodoro,
     required this.flexible,
   });
 
   final String name;
-  final String color;
   final TagModeConfigPomodoro pomodoro;
   final TagModeConfigFlexible flexible;
 }
@@ -60,14 +58,12 @@ class UpdateTagInput {
   const UpdateTagInput({
     required this.id,
     required this.name,
-    required this.color,
     required this.pomodoro,
     required this.flexible,
   });
 
   final String id;
   final String name;
-  final String color;
   final TagModeConfigPomodoro pomodoro;
   final TagModeConfigFlexible flexible;
 }

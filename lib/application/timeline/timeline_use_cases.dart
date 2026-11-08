@@ -115,7 +115,6 @@ class TimelineUseCases {
           session: session,
           segments: segmentsForTimelineDetail(segments),
           tagDisplayName: tag?.name ?? deletedTagLabel,
-          tagColor: tag?.color ?? '#9CA3AF',
         ),
       );
     } on AppError catch (e) {
@@ -144,7 +143,6 @@ class TimelineUseCases {
       sessionId: session.id,
       tagId: session.tagId,
       tagDisplayName: tag?.name ?? deletedTagLabel,
-      tagColor: tag?.color ?? '#9CA3AF',
       mode: session.mode,
       status: session.status,
       totalActiveSec: session.totalActiveSec,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pomodoro_app/presentation/shared/phosphor_icon_data.dart';
 import 'package:pomodoro_app/presentation/l10n/l10n_extensions.dart';
 import 'package:pomodoro_app/presentation/shared/format_helpers.dart';
 
@@ -46,7 +47,7 @@ class TimelineMonthFilter extends StatelessWidget {
                 context,
               ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
             ),
-            const Icon(Icons.arrow_drop_down),
+            const Icon(PresentationPhosphorIcons.caretDown),
           ],
         ),
       ),

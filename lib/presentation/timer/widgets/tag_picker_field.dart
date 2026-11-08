@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:pomodoro_app/domain/tag/tag.dart';
 import 'package:pomodoro_app/presentation/l10n/l10n_extensions.dart';
 import 'package:pomodoro_app/presentation/tag/tag_providers.dart';
+import 'package:pomodoro_app/presentation/shared/phosphor_icon_data.dart';
 import 'package:pomodoro_app/presentation/timer/timer_providers.dart';
 
 class TagPickerField extends ConsumerWidget {
@@ -14,17 +15,17 @@ class TagPickerField extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
-    final tagsAsync = ref.watch(tagListProvider);
+    final tagsAsync = ref.watch(timerTagListProvider);
     final ui = ref.watch(timerUiProvider);
     final selectedId = ui.selectedTagId;
 
     return tagsAsync.when(
       loading: () => ListTile(
-        leading: const Icon(Icons.label_outline),
+        leading: const Icon(PresentationPhosphorIcons.tag),
         title: Text(l10n.loadingTags),
       ),
       error: (_, _) => ListTile(
-        leading: const Icon(Icons.error_outline),
+        leading: Icon(PresentationPhosphorIcons.warningCircle()),
         title: Text(l10n.loadTagsFailed),
       ),
       data: (tags) {
@@ -47,7 +48,7 @@ class TagPickerField extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
                 children: [
-                  const Icon(Icons.label_outline),
+                  const Icon(PresentationPhosphorIcons.tag),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -70,7 +71,7 @@ class TagPickerField extends ConsumerWidget {
                       ],
                     ),
                   ),
-                  const Icon(Icons.arrow_drop_down),
+                  const Icon(PresentationPhosphorIcons.caretDown),
                 ],
               ),
             ),
@@ -111,7 +112,7 @@ class TagPickerField extends ConsumerWidget {
                     itemBuilder: (context, index) {
                       final tag = tags[index];
                       return ListTile(
-                        leading: const Icon(Icons.label),
+                        leading: const Icon(PresentationPhosphorIcons.tag),
                         title: Text(tag.name),
                         onTap: () => Navigator.of(context).pop(tag.id),
                       );

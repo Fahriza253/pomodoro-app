@@ -32,7 +32,6 @@ SessionDetail _detail({
     ),
     segments: const [],
     tagDisplayName: 'General',
-    tagColor: '#9CA3AF',
   );
 }
 

@@ -31,7 +31,6 @@ void main() {
       final result = await useCases.createTag(
         CreateTagInput(
           name: 'Deep Work',
-          color: '#8B5CF6',
           pomodoro: TagModeConfigPomodoro.defaults(),
           flexible: TagModeConfigFlexible.defaults(),
         ),
@@ -71,7 +70,6 @@ void main() {
         UpdateTagInput(
           id: seededGeneralId,
           name: 'General Renamed',
-          color: '#6366F1',
           pomodoro: TagModeConfigPomodoro.defaults(),
           flexible: TagModeConfigFlexible.defaults(),
         ),

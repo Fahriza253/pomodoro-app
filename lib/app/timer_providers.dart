@@ -1,8 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pomodoro_app/app/providers.dart';
 import 'package:pomodoro_app/application/timer/recovery_check_result.dart';
+import 'package:pomodoro_app/application/timer/session_lifecycle.dart';
 import 'package:pomodoro_app/application/timer/session_recovery_service.dart';
+import 'package:pomodoro_app/application/timer/session_segment_writer.dart';
 import 'package:pomodoro_app/application/timer/timer_coordinator.dart';
+import 'package:pomodoro_app/application/timer/timer_side_effect_hub.dart';
 import 'package:pomodoro_app/platform/aod/aod_adapter.dart';
 import 'package:pomodoro_app/platform/aod/aod_adapter_io.dart';
 import 'package:pomodoro_app/platform/audio/alert_sound_adapter.dart';
@@ -57,11 +60,27 @@ final sessionRecoveryServiceProvider = Provider<SessionRecoveryService>((ref) {
   );
 });
 
-final timerCoordinatorProvider = Provider<TimerCoordinator>((ref) {
-  final coordinator = TimerCoordinator(
+final sessionSegmentWriterProvider = Provider<SessionSegmentWriter>((ref) {
+  return SessionSegmentWriter(
+    sessionRepository: ref.watch(sessionRepositoryProvider),
+    clock: ref.watch(clockAdapterProvider),
+  );
+});
+
+final sessionLifecycleProvider = Provider<SessionLifecycle>((ref) {
+  final lifecycle = SessionLifecycle(
     sessionRepository: ref.watch(sessionRepositoryProvider),
     tagRepository: ref.watch(tagRepositoryProvider),
     activeTimerStateRepository: ref.watch(activeTimerStateRepositoryProvider),
+    clock: ref.watch(clockAdapterProvider),
+    segmentWriter: ref.watch(sessionSegmentWriterProvider),
+  );
+  ref.onDispose(lifecycle.dispose);
+  return lifecycle;
+});
+
+final timerSideEffectHubProvider = Provider<TimerSideEffectHub>((ref) {
+  return TimerSideEffectHub(
     settingsRepository: ref.watch(settingsRepositoryProvider),
     notificationAdapter: ref.watch(notificationAdapterProvider),
     alertSoundAdapter: ref.watch(alertSoundAdapterProvider),
@@ -69,6 +88,15 @@ final timerCoordinatorProvider = Provider<TimerCoordinator>((ref) {
     flashAdapter: ref.watch(flashAdapterProvider),
     focusAdapter: ref.watch(focusAdapterProvider),
     aodAdapter: ref.watch(aodAdapterProvider),
+  );
+});
+
+final timerCoordinatorProvider = Provider<TimerCoordinator>((ref) {
+  final coordinator = TimerCoordinator(
+    sessionLifecycle: ref.watch(sessionLifecycleProvider),
+    sideEffectHub: ref.watch(timerSideEffectHubProvider),
+    settingsRepository: ref.watch(settingsRepositoryProvider),
+    focusAdapter: ref.watch(focusAdapterProvider),
     clock: ref.watch(clockAdapterProvider),
   );
   ref.onDispose(coordinator.dispose);

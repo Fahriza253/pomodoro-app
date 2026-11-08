@@ -18,7 +18,6 @@ class TagBreakdown {
   const TagBreakdown({
     required this.tagId,
     required this.tagName,
-    required this.tagColor,
     required this.sessionCount,
     required this.focusDurationSec,
     required this.breakDurationSec,
@@ -26,7 +25,6 @@ class TagBreakdown {
 
   final String tagId;
   final String tagName;
-  final String tagColor;
   final int sessionCount;
   final int focusDurationSec;
   final int breakDurationSec;

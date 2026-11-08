@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pomodoro_app/presentation/shared/phosphor_icon_data.dart';
 import 'package:pomodoro_app/domain/common/enums.dart';
 import 'package:pomodoro_app/domain/session/session_segment.dart';
 import 'package:pomodoro_app/l10n/app_localizations.dart';
@@ -31,7 +32,7 @@ class SegmentDetailVisual {
     if (segment.segmentStatus == SegmentStatus.skipped) {
       return SegmentDetailVisual(
         outcome: SegmentDetailOutcome.skipped,
-        icon: Icons.skip_next,
+        icon: PresentationPhosphorIcons.skipForward,
         iconColor: (scheme) => scheme.onSurfaceVariant,
         statusLabel: l10n.segmentSkipped,
       );
@@ -44,7 +45,7 @@ class SegmentDetailVisual {
       if (isLive) {
         return SegmentDetailVisual(
           outcome: SegmentDetailOutcome.active,
-          icon: Icons.play_circle_outline,
+          icon: PresentationPhosphorIcons.playCircle(),
           iconColor: (scheme) => scheme.primary,
           statusLabel: l10n.segmentRunning,
         );
@@ -58,7 +59,7 @@ class SegmentDetailVisual {
 
     return SegmentDetailVisual(
       outcome: SegmentDetailOutcome.skipped,
-      icon: Icons.more_horiz,
+      icon: PresentationPhosphorIcons.dotsThree,
       iconColor: (scheme) => scheme.onSurfaceVariant,
     );
   }
@@ -75,14 +76,14 @@ class SegmentDetailVisual {
         segment.actualSec < segment.plannedSec) {
       return SegmentDetailVisual(
         outcome: SegmentDetailOutcome.partial,
-        icon: Icons.warning_amber_outlined,
+        icon: PresentationPhosphorIcons.warningCircle(),
         iconColor: (scheme) => scheme.tertiary,
         statusLabel: l10n.segmentIncomplete,
       );
     }
     return SegmentDetailVisual(
       outcome: SegmentDetailOutcome.skipped,
-      icon: Icons.skip_next,
+      icon: PresentationPhosphorIcons.skipForward,
       iconColor: (scheme) => scheme.onSurfaceVariant,
       statusLabel: l10n.segmentSkipped,
     );
@@ -98,14 +99,14 @@ class SegmentDetailVisual {
     if (isFocusLike && segment.actualSec < segment.plannedSec) {
       return SegmentDetailVisual(
         outcome: SegmentDetailOutcome.partial,
-        icon: Icons.warning_amber_outlined,
+        icon: PresentationPhosphorIcons.warningCircle(),
         iconColor: (scheme) => scheme.tertiary,
         statusLabel: l10n.segmentIncomplete,
       );
     }
     return SegmentDetailVisual(
       outcome: SegmentDetailOutcome.success,
-      icon: Icons.check_circle_outline,
+      icon: PresentationPhosphorIcons.checkCircle(),
       iconColor: (scheme) => scheme.primary,
     );
   }

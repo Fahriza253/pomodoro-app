@@ -1,0 +1,58 @@
+name: Build Windows Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-build
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.44.2"
+          channel: stable
+          cache: true
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Generate Drift Code
+        run: dart run build_runner build
+
+      - name: Analyze
+        run: flutter analyze --fatal-infos --fatal-warnings
+
+      - name: Build Windows Release
+        run: flutter build windows --release
+
+      # App-local CRT next to the exe (no VC++ prerequisite on target machines).
+      # windows-latest / VS 2026: redist v143 CRT, skip empty v145; tools\bin fallback.
+      - name: Bundle MSVC Runtime
+        shell: pwsh
+        run: ./windows/ci/bundle_msvc_runtime.ps1
+
+      - name: Build Windows Release Installer
+        shell: pwsh
+        run: |
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" windows/installer/release.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Upload Windows Release Installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-release
+          path: build/windows/installer/pomodoro_*_setup.exe
+          if-no-files-found: error
+          retention-days: 7

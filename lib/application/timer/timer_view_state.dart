@@ -22,14 +22,21 @@ class TimerViewState {
     this.segmentEndNextType,
     this.segmentEndCompletedCount,
     this.segmentEndTotalCount,
+    this.preStartCountdown,
   });
 
-  factory TimerViewState.idle({bool showRecoveryPrompt = false}) =>
+  factory TimerViewState.idle({
+    bool showRecoveryPrompt = false,
+    int? preStartCountdown,
+    String? tagId,
+  }) =>
       TimerViewState(
         phase: EnginePhase.idle,
         displaySec: 0,
         isCountdown: true,
         showRecoveryPrompt: showRecoveryPrompt,
+        preStartCountdown: preStartCountdown,
+        tagId: tagId,
       );
 
   final EnginePhase phase;
@@ -55,6 +62,11 @@ class TimerViewState {
   final SegmentType? segmentEndNextType;
   final int? segmentEndCompletedCount;
   final int? segmentEndTotalCount;
+
+  /// Pomodoro 3-2-1 before Session create (`phase == idle` only; not persisted).
+  final int? preStartCountdown;
+
+  bool get isPreStart => preStartCountdown != null;
 
   bool get isWithinEarlyStopGrace => earlyStopGraceRemainingSec > 0;
 

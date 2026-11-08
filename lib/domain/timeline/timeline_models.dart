@@ -21,7 +21,6 @@ class TimelineEntry {
     required this.sessionId,
     required this.tagId,
     required this.tagDisplayName,
-    required this.tagColor,
     required this.mode,
     required this.status,
     required this.totalActiveSec,
@@ -33,7 +32,6 @@ class TimelineEntry {
   final String sessionId;
   final String tagId;
   final String tagDisplayName;
-  final String tagColor;
   final TimerMode mode;
   final SessionStatus status;
   final int totalActiveSec;
@@ -47,13 +45,11 @@ class SessionDetail {
     required this.session,
     required this.segments,
     required this.tagDisplayName,
-    required this.tagColor,
   });
 
   final Session session;
   final List<SessionSegment> segments;
   final String tagDisplayName;
-  final String tagColor;
 }
 
 class TimelineDayGroup {

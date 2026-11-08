@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pomodoro_app/presentation/shared/phosphor_icon_data.dart';
 import 'package:pomodoro_app/presentation/l10n/l10n_extensions.dart';
 
 class TimelineEmptyDay extends StatelessWidget {
@@ -12,7 +13,7 @@ class TimelineEmptyDay extends StatelessWidget {
         child: Column(
           children: [
             Icon(
-              Icons.event_busy_outlined,
+              PresentationPhosphorIcons.calendarX,
               size: 40,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),

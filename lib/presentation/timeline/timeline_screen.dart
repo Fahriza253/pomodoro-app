@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pomodoro_app/presentation/shared/phosphor_icon_data.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pomodoro_app/presentation/l10n/l10n_extensions.dart';
 import 'package:pomodoro_app/presentation/shared/format_helpers.dart';
@@ -44,7 +45,7 @@ class TimelineScreen extends ConsumerWidget {
             child: Align(
               alignment: Alignment.centerLeft,
               child: Chip(
-                avatar: const Icon(Icons.calendar_today_outlined, size: 16),
+                avatar: const Icon(PresentationPhosphorIcons.calendarBlank, size: 16),
                 label: Text(formatDayHeading(selectedDate, l10n)),
                 visualDensity: VisualDensity.compact,
               ),

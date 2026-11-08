@@ -5,6 +5,7 @@ import 'package:pomodoro_app/app/timer_providers.dart';
 import 'package:pomodoro_app/domain/common/enums.dart';
 import 'package:pomodoro_app/presentation/l10n/l10n_extensions.dart';
 import 'package:pomodoro_app/presentation/shared/app_layout.dart';
+import 'package:pomodoro_app/presentation/shared/home_shell_nav.dart';
 import 'package:pomodoro_app/presentation/statistic/statistic_providers.dart';
 import 'package:pomodoro_app/presentation/timer/timer_actions.dart';
 import 'package:pomodoro_app/presentation/timer/timer_providers.dart';
@@ -73,34 +74,10 @@ class HomeShell extends ConsumerWidget {
               surfaceTintColor: Colors.transparent,
               selectedIndex: navigationShell.currentIndex,
               onDestinationSelected: (index) => _onTap(context, ref, index),
-              destinations: [
-                NavigationDestination(
-                  icon: Badge(
-                    isLabelVisible: hasActiveSession,
-                    child: const Icon(Icons.timer_outlined),
-                  ),
-                  selectedIcon: Badge(
-                    isLabelVisible: hasActiveSession,
-                    child: const Icon(Icons.timer),
-                  ),
-                  label: l10n.navTimer,
-                ),
-                NavigationDestination(
-                  icon: const Icon(Icons.view_timeline_outlined),
-                  selectedIcon: const Icon(Icons.view_timeline),
-                  label: l10n.navTimeline,
-                ),
-                NavigationDestination(
-                  icon: const Icon(Icons.bar_chart_outlined),
-                  selectedIcon: const Icon(Icons.bar_chart),
-                  label: l10n.navStatistic,
-                ),
-                NavigationDestination(
-                  icon: const Icon(Icons.settings_outlined),
-                  selectedIcon: const Icon(Icons.settings),
-                  label: l10n.navSettings,
-                ),
-              ],
+              destinations: homeShellNavigationDestinations(
+                hasActiveSession: hasActiveSession,
+                l10n: l10n,
+              ),
             ),
           ),
         ),

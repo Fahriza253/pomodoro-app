@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:pomodoro_app/presentation/shared/phosphor_icon_data.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pomodoro_app/domain/common/enums.dart';
 import 'package:pomodoro_app/domain/common/result.dart';
 import 'package:pomodoro_app/domain/settings/app_settings.dart';
+import 'package:pomodoro_app/domain/settings/focus_mode_capabilities.dart';
 import 'package:pomodoro_app/presentation/l10n/l10n_extensions.dart';
 import 'package:pomodoro_app/presentation/settings/settings_error_messages.dart';
 import 'package:pomodoro_app/presentation/settings/settings_providers.dart';
@@ -65,7 +67,12 @@ class _FocusSettingsScreenState extends ConsumerState<FocusSettingsScreen> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (_, _) => Center(child: Text(l10n.loadSettingsFailed)),
         data: (settings) {
-          final needsUsage = settings.focusMode != FocusMode.loose;
+          final displayedMode = effectiveFocusMode(
+            settings.focusMode,
+            strictAvailable: caps.strictAvailable,
+            whitelistAvailable: caps.whitelistAvailable,
+          );
+          final needsUsage = displayedMode != FocusMode.loose;
           final showPermissionBanner =
               needsUsage && _usageAccessGranted == false;
 
@@ -74,21 +81,8 @@ class _FocusSettingsScreenState extends ConsumerState<FocusSettingsScreen> {
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                if (!caps.strictAvailable || !caps.whitelistAvailable)
-                  Card(
-                    color: Theme.of(context).colorScheme.errorContainer,
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Text(
-                        l10n.focusModeDegradedBanner,
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.onErrorContainer,
-                        ),
-                      ),
-                    ),
-                  ),
                 RadioGroup<FocusMode>(
-                  groupValue: settings.focusMode,
+                  groupValue: displayedMode,
                   onChanged: (mode) {
                     if (mode != null) {
                       _save(AppSettingsPatch(focusMode: mode));
@@ -100,20 +94,19 @@ class _FocusSettingsScreenState extends ConsumerState<FocusSettingsScreen> {
                         title: l10n.focusLoose,
                         subtitle: l10n.focusLooseSubtitle,
                         mode: FocusMode.loose,
-                        enabled: true,
                       ),
-                      _ModeTile(
-                        title: l10n.focusStrict,
-                        subtitle: l10n.focusStrictSubtitle,
-                        mode: FocusMode.strict,
-                        enabled: caps.strictAvailable,
-                      ),
-                      _ModeTile(
-                        title: l10n.focusWhitelist,
-                        subtitle: l10n.focusWhitelistSubtitle,
-                        mode: FocusMode.whitelist,
-                        enabled: caps.whitelistAvailable,
-                      ),
+                      if (caps.strictAvailable)
+                        _ModeTile(
+                          title: l10n.focusStrict,
+                          subtitle: l10n.focusStrictSubtitle,
+                          mode: FocusMode.strict,
+                        ),
+                      if (caps.whitelistAvailable)
+                        _ModeTile(
+                          title: l10n.focusWhitelist,
+                          subtitle: l10n.focusWhitelistSubtitle,
+                          mode: FocusMode.whitelist,
+                        ),
                     ],
                   ),
                 ),
@@ -129,7 +122,7 @@ class _FocusSettingsScreenState extends ConsumerState<FocusSettingsScreen> {
                           Row(
                             children: [
                               Icon(
-                                Icons.warning_amber_rounded,
+                                PresentationPhosphorIcons.warning,
                                 color: Theme.of(
                                   context,
                                 ).colorScheme.onTertiaryContainer,
@@ -189,12 +182,14 @@ class _FocusSettingsScreenState extends ConsumerState<FocusSettingsScreen> {
                     }
                   },
                 ),
-                const SizedBox(height: 16),
-                OutlinedButton.icon(
-                  onPressed: () => context.push('/settings/focus/whitelist'),
-                  icon: const Icon(Icons.list_alt),
-                  label: Text(l10n.manageWhitelist),
-                ),
+                if (caps.whitelistAvailable) ...[
+                  const SizedBox(height: 16),
+                  OutlinedButton.icon(
+                    onPressed: () => context.push('/settings/focus/whitelist'),
+                    icon: const Icon(PresentationPhosphorIcons.listBullets),
+                    label: Text(l10n.manageWhitelist),
+                  ),
+                ],
               ],
             ),
           );
@@ -209,23 +204,19 @@ class _ModeTile extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.mode,
-    required this.enabled,
   });
 
   final String title;
   final String subtitle;
   final FocusMode mode;
-  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
-    final subtitleText = enabled ? subtitle : context.l10n.notAvailableOnDevice;
     return Card(
       child: RadioListTile<FocusMode>(
         title: Text(title),
-        subtitle: Text(subtitleText),
+        subtitle: Text(subtitle),
         value: mode,
-        enabled: enabled,
       ),
     );
   }

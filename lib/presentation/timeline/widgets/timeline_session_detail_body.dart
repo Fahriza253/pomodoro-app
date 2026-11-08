@@ -3,7 +3,6 @@ import 'package:pomodoro_app/domain/common/enums.dart';
 import 'package:pomodoro_app/domain/timeline/timeline_models.dart';
 import 'package:pomodoro_app/presentation/l10n/l10n_extensions.dart';
 import 'package:pomodoro_app/presentation/shared/format_helpers.dart';
-import 'package:pomodoro_app/presentation/shared/tag_color_dot.dart';
 import 'package:pomodoro_app/presentation/timeline/widgets/session_segment_tile.dart';
 
 class TimelineSessionDetailBody extends StatelessWidget {
@@ -25,18 +24,12 @@ class TimelineSessionDetailBody extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        Row(
-          children: [
-            TagColorDot(hex: detail.tagColor, size: 12),
-            const SizedBox(width: 8),
-            Text(
-              l10n.sessionTagAndMode(
-                detail.tagDisplayName,
-                timerModeLabel(session.mode, l10n),
-              ),
-              style: theme.textTheme.titleMedium,
-            ),
-          ],
+        Text(
+          l10n.sessionTagAndMode(
+            detail.tagDisplayName,
+            timerModeLabel(session.mode, l10n),
+          ),
+          style: theme.textTheme.titleMedium,
         ),
         const SizedBox(height: 8),
         Text(l10n.sessionStatusPrefix(sessionStatusLabel(session.status, l10n))),

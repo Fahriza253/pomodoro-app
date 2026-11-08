@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pomodoro_app/presentation/shared/phosphor_icon_data.dart';
 import 'package:flutter/services.dart';
 import 'package:pomodoro_app/presentation/l10n/l10n_extensions.dart';
 
@@ -65,10 +66,10 @@ class _SlideToStopState extends State<SlideToStop>
   @override
   void initState() {
     super.initState();
-    _snapController =
+        _snapController =
         AnimationController(
           vsync: this,
-          duration: const Duration(milliseconds: 280),
+          duration: const Duration(milliseconds: 220),
         )..addListener(() {
           final anim = _snapAnimation;
           if (anim == null) {
@@ -212,9 +213,9 @@ class _SlideToStopState extends State<SlideToStop>
                   Positioned(
                     left: _trackPadding + _dragExtent,
                     child: AnimatedScale(
-                      scale: _armed ? 1.06 : 1,
-                      duration: const Duration(milliseconds: 160),
-                      curve: Curves.easeOutBack,
+                      scale: _armed ? 1.03 : 1,
+                      duration: const Duration(milliseconds: 200),
+                      curve: Curves.easeOutCubic,
                       child: Material(
                         color: thumbColor,
                         elevation: 2,
@@ -224,7 +225,7 @@ class _SlideToStopState extends State<SlideToStop>
                           width: _thumbSize,
                           height: _thumbSize,
                           child: Icon(
-                            Icons.stop_rounded,
+                            PresentationPhosphorIcons.stop,
                             color: thumbIconColor,
                           ),
                         ),

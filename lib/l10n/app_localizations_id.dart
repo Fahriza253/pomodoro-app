@@ -132,6 +132,27 @@ class AppLocalizationsId extends AppLocalizations {
   String get sessionCompleteTitle => 'Session selesai';
 
   @override
+  String get sessionCompleteYouDidIt => 'Berhasil!';
+
+  @override
+  String get sessionCompleteBodyCasual =>
+      'Keren, sesi ini selesai! Mau lanjut atau istirahat dulu?';
+
+  @override
+  String get sessionCompleteBodyBrief =>
+      'Sesi selesai! Tetap lanjut atau istirahat sebentar?';
+
+  @override
+  String get sessionCompleteBodyMotivational =>
+      'Kerja bagus! Jaga ritmemu atau istirahat dulu?';
+
+  @override
+  String get startNewSession => 'Mulai sesi baru';
+
+  @override
+  String get backToHome => 'Kembali ke beranda';
+
+  @override
   String get sessionSavedBody =>
       'Session tersimpan. Mulai lagi dengan tag yang sama, atau kembali ke beranda.';
 

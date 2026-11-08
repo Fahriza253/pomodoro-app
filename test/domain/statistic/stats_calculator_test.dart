@@ -82,7 +82,6 @@ void main() {
           'tag-1': Tag(
             id: 'tag-1',
             name: 'General',
-            color: '#6366F1',
             sortOrder: 0,
             createdAtUtcMs: 1,
             updatedAtUtcMs: 1,

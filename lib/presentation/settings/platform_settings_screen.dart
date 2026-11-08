@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:pomodoro_app/presentation/shared/phosphor_icon_data.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pomodoro_app/platform/battery/battery_guidance.dart';
 import 'package:pomodoro_app/presentation/l10n/l10n_extensions.dart';
-import 'package:pomodoro_app/presentation/settings/platform_degraded_note_l10n.dart';
 import 'package:pomodoro_app/presentation/settings/platform_providers.dart';
 
 class PlatformSettingsScreen extends ConsumerWidget {
@@ -23,52 +23,23 @@ class PlatformSettingsScreen extends ConsumerWidget {
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 16),
-          _CapabilityTile(
-            title: l10n.segmentNotifications,
-            supported: caps.notifications.scheduledSegmentEnd,
-            detail: caps.notifications.deepLinkOnTap
-                ? l10n.notificationDeepLinkAvailable
-                : l10n.deepLinkUnavailable,
-          ),
-          _CapabilityTile(
-            title: l10n.flexibleReminders,
-            supported: caps.notifications.reminders,
-          ),
-          _CapabilityTile(
-            title: '${l10n.segmentFocus} ${l10n.focusStrict}',
-            supported: caps.focus.strictAvailable,
-          ),
-          _CapabilityTile(
-            title: '${l10n.segmentFocus} ${l10n.focusWhitelist}',
-            supported: caps.focus.whitelistAvailable,
-          ),
-          _CapabilityTile(
-            title: l10n.alwaysOnDisplay,
-            supported: caps.aod.alwaysOnDisplaySupported,
-          ),
-          if (caps.degradedNotes.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            Text(
-              l10n.platformNotes,
-              style: Theme.of(context).textTheme.titleSmall,
+          if (caps.notifications.scheduledSegmentEnd)
+            _CapabilityTile(
+              title: l10n.segmentNotifications,
+              detail: caps.notifications.deepLinkOnTap
+                  ? l10n.notificationDeepLinkAvailable
+                  : l10n.deepLinkUnavailable,
             ),
-            const SizedBox(height: 8),
-            ...caps.degradedNotes.map(
-              (note) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(Icons.info_outline, size: 18),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(platformDegradedNoteMessage(note, l10n)),
-                    ),
-                  ],
-                ),
-              ),
+          if (caps.notifications.reminders)
+            _CapabilityTile(title: l10n.flexibleReminders),
+          if (caps.focus.strictAvailable)
+            _CapabilityTile(title: '${l10n.segmentFocus} ${l10n.focusStrict}'),
+          if (caps.focus.whitelistAvailable)
+            _CapabilityTile(
+              title: '${l10n.segmentFocus} ${l10n.focusWhitelist}',
             ),
-          ],
+          if (caps.aod.alwaysOnDisplaySupported)
+            _CapabilityTile(title: l10n.alwaysOnDisplay),
           if (BatteryGuidance.isAndroid) ...[
             const Divider(height: 32),
             Text(
@@ -92,12 +63,10 @@ class PlatformSettingsScreen extends ConsumerWidget {
 class _CapabilityTile extends StatelessWidget {
   const _CapabilityTile({
     required this.title,
-    required this.supported,
     this.detail,
   });
 
   final String title;
-  final bool supported;
   final String? detail;
 
   @override
@@ -105,8 +74,8 @@ class _CapabilityTile extends StatelessWidget {
     return ListTile(
       contentPadding: EdgeInsets.zero,
       leading: Icon(
-        supported ? Icons.check_circle : Icons.remove_circle_outline,
-        color: supported ? Colors.green : Theme.of(context).colorScheme.outline,
+        PresentationPhosphorIcons.checkCircle(filled: true),
+        color: Theme.of(context).colorScheme.primary,
       ),
       title: Text(title),
       subtitle: detail != null ? Text(detail!) : null,

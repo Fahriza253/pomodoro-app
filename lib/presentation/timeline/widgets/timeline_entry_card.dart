@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:pomodoro_app/domain/common/enums.dart';
 import 'package:pomodoro_app/domain/timeline/timeline_models.dart';
 import 'package:pomodoro_app/presentation/l10n/l10n_extensions.dart';
+import 'package:pomodoro_app/presentation/shared/phosphor_icon_data.dart';
 import 'package:pomodoro_app/presentation/shared/format_helpers.dart';
-import 'package:pomodoro_app/presentation/shared/tag_color_dot.dart';
 
 class TimelineEntryCard extends StatelessWidget {
   const TimelineEntryCard({
@@ -35,21 +35,13 @@ class TimelineEntryCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        TagColorDot(hex: entry.tagColor),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            entry.tagDisplayName,
-                            style: theme.textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
+                    Text(
+                      entry.tagDisplayName,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 6),
                     Text(
@@ -72,7 +64,7 @@ class TimelineEntryCard extends StatelessWidget {
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right, color: muted),
+              Icon(PresentationPhosphorIcons.caretRight, color: muted),
             ],
           ),
         ),

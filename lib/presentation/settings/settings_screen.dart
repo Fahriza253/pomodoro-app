@@ -6,7 +6,9 @@ import 'package:pomodoro_app/domain/settings/alert_tone_catalog.dart';
 import 'package:pomodoro_app/domain/settings/app_settings.dart';
 import 'package:pomodoro_app/l10n/app_localizations.dart';
 import 'package:pomodoro_app/presentation/l10n/l10n_extensions.dart';
+import 'package:pomodoro_app/domain/settings/focus_mode_capabilities.dart';
 import 'package:pomodoro_app/presentation/settings/settings_providers.dart';
+import 'package:pomodoro_app/presentation/shared/phosphor_icon_data.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -14,6 +16,7 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settingsAsync = ref.watch(appSettingsStreamProvider);
+    final focusCaps = ref.watch(focusCapabilitiesProvider);
     final l10n = context.l10n;
 
     return Scaffold(
@@ -26,7 +29,7 @@ class SettingsScreen extends ConsumerWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.error_outline, size: 48),
+                Icon(PresentationPhosphorIcons.warningCircle(), size: 48),
                 const SizedBox(height: 12),
                 Text(
                   l10n.loadSettingsFailed,
@@ -52,14 +55,22 @@ class SettingsScreen extends ConsumerWidget {
             _SectionHeader(title: l10n.settingsSectionFocus.toUpperCase()),
             _SettingsTile(
               title: l10n.focusMode,
-              subtitle: _focusModeLabel(settings.focusMode, l10n),
+              subtitle: _focusModeLabel(
+                effectiveFocusMode(
+                  settings.focusMode,
+                  strictAvailable: focusCaps.strictAvailable,
+                  whitelistAvailable: focusCaps.whitelistAvailable,
+                ),
+                l10n,
+              ),
               onTap: () => context.push('/settings/focus'),
             ),
-            _SettingsTile(
-              title: l10n.whitelistApps,
-              subtitle: l10n.appCount(settings.whitelist.length),
-              onTap: () => context.push('/settings/focus/whitelist'),
-            ),
+            if (focusCaps.whitelistAvailable)
+              _SettingsTile(
+                title: l10n.whitelistApps,
+                subtitle: l10n.appCount(settings.whitelist.length),
+                onTap: () => context.push('/settings/focus/whitelist'),
+              ),
             _SectionHeader(
               title: l10n.settingsSectionAppearance.toUpperCase(),
             ),
@@ -142,7 +153,7 @@ class _SettingsTile extends StatelessWidget {
       child: ListTile(
         title: Text(title),
         subtitle: Text(subtitle),
-        trailing: const Icon(Icons.chevron_right),
+        trailing: const Icon(PresentationPhosphorIcons.caretRight),
         onTap: onTap,
       ),
     );

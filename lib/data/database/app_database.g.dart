@@ -30,16 +30,6 @@ class $TagsTable extends Tags with TableInfo<$TagsTable, Tag> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _colorMeta = const VerificationMeta('color');
-  @override
-  late final GeneratedColumn<String> color = GeneratedColumn<String>(
-    'color',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-    defaultValue: const Constant('#6366F1'),
-  );
   static const VerificationMeta _sortOrderMeta = const VerificationMeta(
     'sortOrder',
   );
@@ -89,7 +79,6 @@ class $TagsTable extends Tags with TableInfo<$TagsTable, Tag> {
   List<GeneratedColumn> get $columns => [
     id,
     name,
-    color,
     sortOrder,
     deletedAt,
     createdAt,
@@ -119,12 +108,6 @@ class $TagsTable extends Tags with TableInfo<$TagsTable, Tag> {
       );
     } else if (isInserting) {
       context.missing(_nameMeta);
-    }
-    if (data.containsKey('color')) {
-      context.handle(
-        _colorMeta,
-        color.isAcceptableOrUnknown(data['color']!, _colorMeta),
-      );
     }
     if (data.containsKey('sort_order')) {
       context.handle(
@@ -171,10 +154,6 @@ class $TagsTable extends Tags with TableInfo<$TagsTable, Tag> {
         DriftSqlType.string,
         data['${effectivePrefix}name'],
       )!,
-      color: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}color'],
-      )!,
       sortOrder: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}sort_order'],
@@ -203,7 +182,6 @@ class $TagsTable extends Tags with TableInfo<$TagsTable, Tag> {
 class Tag extends DataClass implements Insertable<Tag> {
   final String id;
   final String name;
-  final String color;
   final int sortOrder;
   final int? deletedAt;
   final int createdAt;
@@ -211,7 +189,6 @@ class Tag extends DataClass implements Insertable<Tag> {
   const Tag({
     required this.id,
     required this.name,
-    required this.color,
     required this.sortOrder,
     this.deletedAt,
     required this.createdAt,
@@ -222,7 +199,6 @@ class Tag extends DataClass implements Insertable<Tag> {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
     map['name'] = Variable<String>(name);
-    map['color'] = Variable<String>(color);
     map['sort_order'] = Variable<int>(sortOrder);
     if (!nullToAbsent || deletedAt != null) {
       map['deleted_at'] = Variable<int>(deletedAt);
@@ -236,7 +212,6 @@ class Tag extends DataClass implements Insertable<Tag> {
     return TagsCompanion(
       id: Value(id),
       name: Value(name),
-      color: Value(color),
       sortOrder: Value(sortOrder),
       deletedAt: deletedAt == null && nullToAbsent
           ? const Value.absent()
@@ -254,7 +229,6 @@ class Tag extends DataClass implements Insertable<Tag> {
     return Tag(
       id: serializer.fromJson<String>(json['id']),
       name: serializer.fromJson<String>(json['name']),
-      color: serializer.fromJson<String>(json['color']),
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
       deletedAt: serializer.fromJson<int?>(json['deletedAt']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
@@ -267,7 +241,6 @@ class Tag extends DataClass implements Insertable<Tag> {
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
       'name': serializer.toJson<String>(name),
-      'color': serializer.toJson<String>(color),
       'sortOrder': serializer.toJson<int>(sortOrder),
       'deletedAt': serializer.toJson<int?>(deletedAt),
       'createdAt': serializer.toJson<int>(createdAt),
@@ -278,7 +251,6 @@ class Tag extends DataClass implements Insertable<Tag> {
   Tag copyWith({
     String? id,
     String? name,
-    String? color,
     int? sortOrder,
     Value<int?> deletedAt = const Value.absent(),
     int? createdAt,
@@ -286,7 +258,6 @@ class Tag extends DataClass implements Insertable<Tag> {
   }) => Tag(
     id: id ?? this.id,
     name: name ?? this.name,
-    color: color ?? this.color,
     sortOrder: sortOrder ?? this.sortOrder,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
     createdAt: createdAt ?? this.createdAt,
@@ -296,7 +267,6 @@ class Tag extends DataClass implements Insertable<Tag> {
     return Tag(
       id: data.id.present ? data.id.value : this.id,
       name: data.name.present ? data.name.value : this.name,
-      color: data.color.present ? data.color.value : this.color,
       sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
@@ -309,7 +279,6 @@ class Tag extends DataClass implements Insertable<Tag> {
     return (StringBuffer('Tag(')
           ..write('id: $id, ')
           ..write('name: $name, ')
-          ..write('color: $color, ')
           ..write('sortOrder: $sortOrder, ')
           ..write('deletedAt: $deletedAt, ')
           ..write('createdAt: $createdAt, ')
@@ -320,14 +289,13 @@ class Tag extends DataClass implements Insertable<Tag> {
 
   @override
   int get hashCode =>
-      Object.hash(id, name, color, sortOrder, deletedAt, createdAt, updatedAt);
+      Object.hash(id, name, sortOrder, deletedAt, createdAt, updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is Tag &&
           other.id == this.id &&
           other.name == this.name &&
-          other.color == this.color &&
           other.sortOrder == this.sortOrder &&
           other.deletedAt == this.deletedAt &&
           other.createdAt == this.createdAt &&
@@ -337,7 +305,6 @@ class Tag extends DataClass implements Insertable<Tag> {
 class TagsCompanion extends UpdateCompanion<Tag> {
   final Value<String> id;
   final Value<String> name;
-  final Value<String> color;
   final Value<int> sortOrder;
   final Value<int?> deletedAt;
   final Value<int> createdAt;
@@ -346,7 +313,6 @@ class TagsCompanion extends UpdateCompanion<Tag> {
   const TagsCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
-    this.color = const Value.absent(),
     this.sortOrder = const Value.absent(),
     this.deletedAt = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -356,7 +322,6 @@ class TagsCompanion extends UpdateCompanion<Tag> {
   TagsCompanion.insert({
     required String id,
     required String name,
-    this.color = const Value.absent(),
     this.sortOrder = const Value.absent(),
     this.deletedAt = const Value.absent(),
     required int createdAt,
@@ -369,7 +334,6 @@ class TagsCompanion extends UpdateCompanion<Tag> {
   static Insertable<Tag> custom({
     Expression<String>? id,
     Expression<String>? name,
-    Expression<String>? color,
     Expression<int>? sortOrder,
     Expression<int>? deletedAt,
     Expression<int>? createdAt,
@@ -379,7 +343,6 @@ class TagsCompanion extends UpdateCompanion<Tag> {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (name != null) 'name': name,
-      if (color != null) 'color': color,
       if (sortOrder != null) 'sort_order': sortOrder,
       if (deletedAt != null) 'deleted_at': deletedAt,
       if (createdAt != null) 'created_at': createdAt,
@@ -391,7 +354,6 @@ class TagsCompanion extends UpdateCompanion<Tag> {
   TagsCompanion copyWith({
     Value<String>? id,
     Value<String>? name,
-    Value<String>? color,
     Value<int>? sortOrder,
     Value<int?>? deletedAt,
     Value<int>? createdAt,
@@ -401,7 +363,6 @@ class TagsCompanion extends UpdateCompanion<Tag> {
     return TagsCompanion(
       id: id ?? this.id,
       name: name ?? this.name,
-      color: color ?? this.color,
       sortOrder: sortOrder ?? this.sortOrder,
       deletedAt: deletedAt ?? this.deletedAt,
       createdAt: createdAt ?? this.createdAt,
@@ -418,9 +379,6 @@ class TagsCompanion extends UpdateCompanion<Tag> {
     }
     if (name.present) {
       map['name'] = Variable<String>(name.value);
-    }
-    if (color.present) {
-      map['color'] = Variable<String>(color.value);
     }
     if (sortOrder.present) {
       map['sort_order'] = Variable<int>(sortOrder.value);
@@ -445,7 +403,6 @@ class TagsCompanion extends UpdateCompanion<Tag> {
     return (StringBuffer('TagsCompanion(')
           ..write('id: $id, ')
           ..write('name: $name, ')
-          ..write('color: $color, ')
           ..write('sortOrder: $sortOrder, ')
           ..write('deletedAt: $deletedAt, ')
           ..write('createdAt: $createdAt, ')
@@ -4522,7 +4479,6 @@ typedef $$TagsTableCreateCompanionBuilder =
     TagsCompanion Function({
       required String id,
       required String name,
-      Value<String> color,
       Value<int> sortOrder,
       Value<int?> deletedAt,
       required int createdAt,
@@ -4533,7 +4489,6 @@ typedef $$TagsTableUpdateCompanionBuilder =
     TagsCompanion Function({
       Value<String> id,
       Value<String> name,
-      Value<String> color,
       Value<int> sortOrder,
       Value<int?> deletedAt,
       Value<int> createdAt,
@@ -4597,11 +4552,6 @@ class $$TagsTableFilterComposer extends Composer<_$AppDatabase, $TagsTable> {
 
   ColumnFilters<String> get name => $composableBuilder(
     column: $table.name,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get color => $composableBuilder(
-    column: $table.color,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4694,11 +4644,6 @@ class $$TagsTableOrderingComposer extends Composer<_$AppDatabase, $TagsTable> {
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get color => $composableBuilder(
-    column: $table.color,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<int> get sortOrder => $composableBuilder(
     column: $table.sortOrder,
     builder: (column) => ColumnOrderings(column),
@@ -4734,9 +4679,6 @@ class $$TagsTableAnnotationComposer
 
   GeneratedColumn<String> get name =>
       $composableBuilder(column: $table.name, builder: (column) => column);
-
-  GeneratedColumn<String> get color =>
-      $composableBuilder(column: $table.color, builder: (column) => column);
 
   GeneratedColumn<int> get sortOrder =>
       $composableBuilder(column: $table.sortOrder, builder: (column) => column);
@@ -4831,7 +4773,6 @@ class $$TagsTableTableManager
               ({
                 Value<String> id = const Value.absent(),
                 Value<String> name = const Value.absent(),
-                Value<String> color = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
                 Value<int?> deletedAt = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
@@ -4840,7 +4781,6 @@ class $$TagsTableTableManager
               }) => TagsCompanion(
                 id: id,
                 name: name,
-                color: color,
                 sortOrder: sortOrder,
                 deletedAt: deletedAt,
                 createdAt: createdAt,
@@ -4851,7 +4791,6 @@ class $$TagsTableTableManager
               ({
                 required String id,
                 required String name,
-                Value<String> color = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
                 Value<int?> deletedAt = const Value.absent(),
                 required int createdAt,
@@ -4860,7 +4799,6 @@ class $$TagsTableTableManager
               }) => TagsCompanion.insert(
                 id: id,
                 name: name,
-                color: color,
                 sortOrder: sortOrder,
                 deletedAt: deletedAt,
                 createdAt: createdAt,

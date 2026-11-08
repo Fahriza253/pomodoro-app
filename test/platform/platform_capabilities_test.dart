@@ -4,7 +4,6 @@ import 'package:pomodoro_app/platform/notifications/notification_adapter.dart';
 import 'package:pomodoro_app/platform/notifications/notification_adapter_stub.dart';
 import 'package:pomodoro_app/platform/notifications/running_timer_notification.dart';
 import 'package:pomodoro_app/platform/platform_capabilities.dart';
-import 'package:pomodoro_app/platform/platform_degraded_note.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -18,14 +17,10 @@ void main() {
     expect(snapshot.focus.strictAvailable, isFalse);
     expect(snapshot.notifications.scheduledSegmentEnd, isFalse);
     expect(snapshot.aod.alwaysOnDisplaySupported, isFalse);
-    expect(snapshot.degradedNotes, isNotEmpty);
-    expect(
-      snapshot.degradedNotes,
-      contains(PlatformDegradedNote.focusModesDegradedToLoose),
-    );
+    expect(snapshot.degradedNotes, isEmpty);
   });
 
-  test('notification initFailed surfaces a degraded note', () {
+  test('notification initFailed does not surface UI degradation notes', () {
     final snapshot = buildPlatformCapabilities(
       focusAdapter: StubFocusAdapter(),
       notificationAdapter: _InitFailedNotificationAdapter(),
@@ -33,10 +28,7 @@ void main() {
     );
 
     expect(snapshot.notifications.initFailed, isTrue);
-    expect(
-      snapshot.degradedNotes,
-      contains(PlatformDegradedNote.notificationInitFailed),
-    );
+    expect(snapshot.degradedNotes, isEmpty);
   });
 }
 

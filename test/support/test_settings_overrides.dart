@@ -38,7 +38,6 @@ Tag testGeneralTag({int updatedAtUtcMs = 1}) {
   return Tag(
     id: 'test-general-tag',
     name: 'General',
-    color: '#6366F1',
     sortOrder: 0,
     createdAtUtcMs: updatedAtUtcMs,
     updatedAtUtcMs: updatedAtUtcMs,
@@ -47,5 +46,10 @@ Tag testGeneralTag({int updatedAtUtcMs = 1}) {
 
 /// Avoids Drift watch timers pending in widget tests when timer tab loads tags.
 final testTagListOverride = tagListProvider.overrideWith(
+  (ref) => Stream.value([testGeneralTag()]),
+);
+
+/// Same as [testTagListOverride] for the timer picker stream.
+final testTimerTagListOverride = timerTagListProvider.overrideWith(
   (ref) => Stream.value([testGeneralTag()]),
 );

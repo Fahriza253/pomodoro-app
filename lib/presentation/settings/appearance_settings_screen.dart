@@ -70,19 +70,16 @@ class _AppearanceSettingsScreenState
                       .toList(),
                 ),
               ),
-              const Divider(height: 32),
-              SwitchListTile(
-                title: Text(l10n.alwaysOnDisplay),
-                subtitle: Text(
-                  aodCaps.alwaysOnDisplaySupported
-                      ? l10n.aodEnabledDescription
-                      : l10n.notSupportedOnDevice,
+              if (aodCaps.alwaysOnDisplaySupported) ...[
+                const Divider(height: 32),
+                SwitchListTile(
+                  title: Text(l10n.alwaysOnDisplay),
+                  subtitle: Text(l10n.aodEnabledDescription),
+                  value: settings.alwaysOnDisplay,
+                  onChanged: (value) =>
+                      _save(AppSettingsPatch(alwaysOnDisplay: value)),
                 ),
-                value: settings.alwaysOnDisplay,
-                onChanged: aodCaps.alwaysOnDisplaySupported
-                    ? (value) => _save(AppSettingsPatch(alwaysOnDisplay: value))
-                    : null,
-              ),
+              ],
             ],
           ),
         ),

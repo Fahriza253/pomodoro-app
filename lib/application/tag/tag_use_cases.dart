@@ -2,6 +2,7 @@ import 'package:pomodoro_app/data/repositories/session_repository.dart';
 import 'package:pomodoro_app/data/repositories/tag_repository.dart';
 import 'package:pomodoro_app/domain/common/app_error.dart';
 import 'package:pomodoro_app/domain/common/result.dart';
+import 'package:pomodoro_app/domain/tag/debug_short_tag.dart';
 import 'package:pomodoro_app/domain/tag/tag.dart';
 import 'package:pomodoro_app/domain/tag/tag_config_validator.dart';
 import 'package:pomodoro_app/domain/tag/tag_form_data.dart';
@@ -19,7 +20,19 @@ class TagUseCases {
   final SessionRepository _sessionRepository;
   final TagConfigValidator _validator;
 
-  Future<List<Tag>> listTags() => _tagRepository.listActiveOrdered();
+  /// Tag management UI — never includes the debug QA Tag.
+  Future<List<Tag>> listTagsForManagement() async {
+    final tags = await _tagRepository.listActiveOrdered();
+    return DebugShortTag.forManagement(tags);
+  }
+
+  /// Timer picker — includes debug Tag only when [DebugShortTag.enabled].
+  Future<List<Tag>> listTagsForTimerPicker() async {
+    final tags = await _tagRepository.listActiveOrdered();
+    return DebugShortTag.forTimerPicker(tags);
+  }
+
+  Future<List<Tag>> listTags() => listTagsForManagement();
 
   Future<TagFormData> getTagForm(String id) async {
     final withConfigs = await _tagRepository.getWithConfigs(id);

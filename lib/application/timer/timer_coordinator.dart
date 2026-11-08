@@ -1,86 +1,39 @@
 import 'dart:async';
 
-import 'package:pomodoro_app/application/timer/config_snapshot_factory.dart';
 import 'package:pomodoro_app/application/timer/lifecycle_result.dart';
 import 'package:pomodoro_app/application/timer/notification_strings.dart';
-import 'package:pomodoro_app/application/timer/segment_end_cycle_progress.dart';
 import 'package:pomodoro_app/application/timer/persist_reason.dart';
+import 'package:pomodoro_app/application/timer/timer_flow_projection.dart';
+import 'package:pomodoro_app/application/timer/timer_flow_state.dart';
 import 'package:pomodoro_app/application/timer/session_lifecycle.dart';
 import 'package:pomodoro_app/application/timer/side_effect_context.dart';
 import 'package:pomodoro_app/application/timer/timer_side_effect_hub.dart';
-import 'package:pomodoro_app/application/timer/timer_state_builder.dart';
 import 'package:pomodoro_app/application/timer/timer_view_state.dart';
-import 'package:pomodoro_app/data/repositories/active_timer_state_repository.dart';
-import 'package:pomodoro_app/data/repositories/session_repository.dart';
 import 'package:pomodoro_app/data/repositories/settings_repository.dart';
-import 'package:pomodoro_app/data/repositories/tag_repository.dart';
 import 'package:pomodoro_app/domain/common/app_error.dart';
 import 'package:pomodoro_app/domain/common/enums.dart';
 import 'package:pomodoro_app/domain/common/result.dart';
 import 'package:pomodoro_app/domain/settings/app_settings.dart';
 import 'package:pomodoro_app/domain/timer/active_timer_state.dart';
-import 'package:pomodoro_app/domain/timer/early_stop_grace.dart';
 import 'package:pomodoro_app/domain/timer/models/timer_engine_state.dart';
-import 'package:pomodoro_app/domain/timer/segment_planner.dart';
 import 'package:pomodoro_app/domain/timer/timer_engine.dart';
 import 'package:pomodoro_app/domain/timer/timer_transition_error.dart';
-import 'package:pomodoro_app/platform/aod/aod_adapter.dart';
-import 'package:pomodoro_app/platform/audio/alert_sound_adapter.dart';
 import 'package:pomodoro_app/platform/clock/clock_adapter.dart';
-import 'package:pomodoro_app/platform/flash/flash_adapter.dart';
 import 'package:pomodoro_app/platform/focus/focus_adapter.dart';
-import 'package:pomodoro_app/platform/haptic/haptic_adapter.dart';
-import 'package:pomodoro_app/platform/notifications/notification_adapter.dart';
-import 'package:uuid/uuid.dart';
 
 /// Thin facade: view-state, recovery prompts, and Lifecycle → Hub order.
+///
+/// Constructed with injected [SessionLifecycle] and [TimerSideEffectHub] —
+/// production wiring owns those modules; this facade does not.
 class TimerCoordinator {
   TimerCoordinator({
-    required SessionRepository sessionRepository,
-    required TagRepository tagRepository,
-    required ActiveTimerStateRepository activeTimerStateRepository,
-    required SettingsRepository settingsRepository,
-    required NotificationAdapter notificationAdapter,
-    required AlertSoundAdapter alertSoundAdapter,
-    required HapticAdapter hapticAdapter,
-    required FlashAdapter flashAdapter,
-    required FocusAdapter focusAdapter,
-    required AODAdapter aodAdapter,
-    required ClockAdapter clock,
-    TimerEngine? engine,
-    SegmentPlanner? planner,
-    ConfigSnapshotFactory? configSnapshotFactory,
-    TimerStateBuilder? stateBuilder,
-    Uuid? uuid,
-    SessionLifecycle? sessionLifecycle,
-    TimerSideEffectHub? sideEffectHub,
-  }) : _lifecycle =
-           sessionLifecycle ??
-           SessionLifecycle(
-             sessionRepository: sessionRepository,
-             tagRepository: tagRepository,
-             activeTimerStateRepository: activeTimerStateRepository,
-             clock: clock,
-             engine: engine,
-             planner: planner,
-             configSnapshotFactory: configSnapshotFactory,
-             stateBuilder: stateBuilder,
-             uuid: uuid,
-           ),
-       _settingsRepository = settingsRepository,
-       _focusAdapter = focusAdapter,
-       _clock = clock,
-       _hub =
-           sideEffectHub ??
-           TimerSideEffectHub(
-             settingsRepository: settingsRepository,
-             notificationAdapter: notificationAdapter,
-             alertSoundAdapter: alertSoundAdapter,
-             hapticAdapter: hapticAdapter,
-             flashAdapter: flashAdapter,
-             focusAdapter: focusAdapter,
-             aodAdapter: aodAdapter,
-           ) {
+    required SessionLifecycle sessionLifecycle,
+    required TimerSideEffectHub sideEffectHub,
+    required this._settingsRepository,
+    required this._focusAdapter,
+    required this._clock,
+  }) : _lifecycle = sessionLifecycle,
+       _hub = sideEffectHub {
     _focusSubscription = _focusAdapter.watchViolations().listen((_) {
       unawaited(_handleFocusViolation());
     });
@@ -94,10 +47,16 @@ class TimerCoordinator {
   final TimerSideEffectHub _hub;
 
   final _viewStateController = StreamController<TimerViewState>.broadcast();
+  final _flowStateController = StreamController<TimerFlowState>.broadcast();
   late final StreamSubscription<FocusViolation> _focusSubscription;
 
   ActiveTimerState? _pendingRecovery;
   bool _showRecoveryPrompt = false;
+
+  String? _preStartTagId;
+  int? _preStartCountdown;
+  Timer? _preStartTimer;
+  bool _isLaunchingAfterPreStart = false;
 
   /// App is interactive — prefer in-app tone over OS tray for segment end.
   bool _isInForeground = true;
@@ -107,7 +66,9 @@ class TimerCoordinator {
 
   Stream<TimerViewState> get viewState => _viewStateController.stream;
   TimerViewState get currentViewState => _buildViewState();
-  TimerEngine get engine => _lifecycle.engine;
+
+  Stream<TimerFlowState> get flowState => _flowStateController.stream;
+  TimerFlowState get currentFlowState => _buildFlowState();
 
   bool get hasActiveSession => _lifecycle.hasActiveSession;
 
@@ -129,7 +90,68 @@ class TimerCoordinator {
     _emitViewState();
   }
 
+  /// Pomodoro UC-01: 3-2-1 countdown then [startPomodoro].
+  AppResult<void> beginPomodoroStart(String tagId) {
+    if (_lifecycle.currentState.phase != EnginePhase.idle) {
+      return err(
+        const ValidationError(
+          code: 'TIMER_INVALID_TRANSITION',
+          message: 'Aksi tidak dapat dilakukan pada state timer saat ini.',
+        ),
+      );
+    }
+    if (hasActiveSession) {
+      return err(
+        const ConflictError(
+          code: 'TIMER_ACTIVE_SESSION',
+          message: 'Sesi timer sedang berjalan. Selesaikan atau hentikan dulu.',
+        ),
+      );
+    }
+    if (_preStartCountdown != null) {
+      return err(
+        const ValidationError(
+          code: 'TIMER_PRESTART_ACTIVE',
+          message: 'Hitungan mundur sudah berjalan.',
+        ),
+      );
+    }
+    _preStartTagId = tagId;
+    _preStartCountdown = 3;
+    _isLaunchingAfterPreStart = false;
+    _startPreStartTimer();
+    _emitViewState();
+    return ok();
+  }
+
+  void cancelPreStart() {
+    if (_preStartCountdown == null) {
+      return;
+    }
+    _clearPreStart();
+    _emitViewState();
+  }
+
+  Future<AppResult<void>> skipPreStartAndLaunch() async {
+    if (_preStartTagId == null || _preStartCountdown == null) {
+      return err(
+        const ValidationError(
+          code: 'TIMER_INVALID_TRANSITION',
+          message: 'Tidak ada hitungan mundur aktif.',
+        ),
+      );
+    }
+    return _runAsync(() async {
+    _preStartTimer?.cancel();
+    _preStartTimer = null;
+    _preStartCountdown = 0;
+    _emitViewState();
+    await _launchAfterPreStart();
+    });
+  }
+
   Future<AppResult<void>> startPomodoro(String tagId) => _runAsync(() async {
+    _clearPreStart();
     final result = await _lifecycle.startPomodoro(tagId);
     await _syncSideEffects(result);
     _emitViewState();
@@ -273,10 +295,63 @@ class TimerCoordinator {
   }
 
   void dispose() {
+    _preStartTimer?.cancel();
+    _preStartTimer = null;
     _focusSubscription.cancel();
-    // AlertSoundAdapter lifecycle is owned by Riverpod provider — do not dispose here.
+    // AlertSoundAdapter + SessionLifecycle lifecycles are owned by Riverpod
+    // providers — do not dispose them here.
     _viewStateController.close();
-    _lifecycle.dispose();
+    _flowStateController.close();
+  }
+
+  void _startPreStartTimer() {
+    _preStartTimer?.cancel();
+    _preStartTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      _onPreStartTick();
+    });
+  }
+
+  void _onPreStartTick() {
+    final current = _preStartCountdown;
+    if (current == null || _isLaunchingAfterPreStart) {
+      return;
+    }
+    if (current <= 1) {
+      _preStartCountdown = 0;
+      _emitViewState();
+      unawaited(_launchAfterPreStart());
+      return;
+    }
+    _preStartCountdown = current - 1;
+    _emitViewState();
+  }
+
+  Future<void> _launchAfterPreStart() async {
+    if (_isLaunchingAfterPreStart) {
+      return;
+    }
+    _isLaunchingAfterPreStart = true;
+    _preStartTimer?.cancel();
+    _preStartTimer = null;
+    final tagId = _preStartTagId;
+    if (tagId == null) {
+      _clearPreStart();
+      _isLaunchingAfterPreStart = false;
+      _emitViewState();
+      return;
+    }
+    final result = await startPomodoro(tagId);
+    if (result.isErr) {
+      _isLaunchingAfterPreStart = false;
+    }
+  }
+
+  void _clearPreStart() {
+    _preStartTimer?.cancel();
+    _preStartTimer = null;
+    _preStartTagId = null;
+    _preStartCountdown = null;
+    _isLaunchingAfterPreStart = false;
   }
 
   Future<void> _afterTransition(LifecycleResult result) async {
@@ -388,90 +463,30 @@ class TimerCoordinator {
     if (_viewStateController.isClosed) {
       return;
     }
-    _viewStateController.add(_buildViewState());
+    final projection = _projectionContext();
+    _viewStateController.add(projectTimerViewState(projection));
+    _flowStateController.add(projectTimerFlowState(projection));
   }
 
-  TimerViewState _buildViewState() {
+  TimerViewState _buildViewState() =>
+      projectTimerViewState(_projectionContext());
+
+  TimerFlowState _buildFlowState() => projectTimerFlowState(_projectionContext());
+
+  TimerProjectionContext _projectionContext() {
     final state = _lifecycle.currentState;
-    final now = _clock.nowUtc();
-
-    if (state.phase == EnginePhase.idle) {
-      return TimerViewState.idle(showRecoveryPrompt: _showRecoveryPrompt);
-    }
-
-    final isCountdown = state.isPomodoro;
-    final displaySec = isCountdown
-        ? state.remainingSecAt(now)
-        : state.elapsedActiveSecAt(now);
-    final activeSec = _lifecycle.totalActiveSec(state);
-    final graceRemaining =
-        (state.phase == EnginePhase.running ||
-            state.phase == EnginePhase.paused)
-        ? earlyStopGraceRemainingSec(activeSec)
-        : 0;
-
-    final endSummary = _segmentEndSummary(state);
-
-    return TimerViewState(
-      phase: state.phase,
-      mode: state.mode,
-      tagId: _lifecycle.tagId,
-      tagName: _lifecycle.tagName,
-      sessionId: _lifecycle.sessionId,
-      displaySec: displaySec,
-      isCountdown: isCountdown,
-      currentSegmentType: state.currentSegment?.type,
-      completedFocusCount: state.pomodoroFocusCount,
-      totalFocusInCycle: state.config?.sessionsBeforeLongBreak ?? 0,
-      completedCycleCount: state.isPomodoro
-          ? state.pomodoroCyclesCompleted
-          : null,
-      totalCycleTarget: state.isPomodoro ? state.pomodoroCyclesTarget : null,
+    return TimerProjectionContext(
+      engineState: state,
+      nowUtc: _clock.nowUtc(),
+      totalActiveSec: _lifecycle.totalActiveSec(state),
+      lifecycleTagId: _lifecycle.tagId,
+      lifecycleTagName: _lifecycle.tagName,
+      lifecycleSessionId: _lifecycle.sessionId,
+      hasActiveSession: hasActiveSession,
       showRecoveryPrompt: _showRecoveryPrompt,
-      currentPlannedSec: state.currentSegment?.plannedSec,
-      earlyStopGraceRemainingSec: graceRemaining,
-      segmentEndFinishedType: endSummary?.finished,
-      segmentEndNextType: endSummary?.next,
-      segmentEndCompletedCount: endSummary?.completedCount,
-      segmentEndTotalCount: endSummary?.totalCount,
-    );
-  }
-
-  ({
-    SegmentType finished,
-    SegmentType? next,
-    int completedCount,
-    int totalCount,
-  })?
-  _segmentEndSummary(TimerEngineState state) {
-    if (state.phase != EnginePhase.segmentComplete &&
-        state.phase != EnginePhase.sessionComplete) {
-      return null;
-    }
-    if (!state.isPomodoro || state.segments.isEmpty) {
-      return null;
-    }
-    final index = state.currentSegmentIndex;
-    if (index < 0 || index >= state.segments.length) {
-      return null;
-    }
-    final sessionComplete = state.phase == EnginePhase.sessionComplete;
-    final nextIndex = index + 1;
-    final nextType = !sessionComplete && nextIndex < state.segments.length
-        ? state.segments[nextIndex].type
-        : null;
-    final finished = state.segments[index].type;
-    final progress = segmentEndCycleProgress(
-      cyclesCompletedAfterSegment: state.pomodoroCyclesCompleted,
-      cyclesTarget: state.pomodoroCyclesTarget,
-      finished: finished,
-      sessionComplete: sessionComplete,
-    );
-    return (
-      finished: finished,
-      next: nextType,
-      completedCount: progress.n,
-      totalCount: progress.total,
+      pendingRecovery: _pendingRecovery,
+      preStartCountdown: _preStartCountdown,
+      preStartTagId: _preStartTagId,
     );
   }
 

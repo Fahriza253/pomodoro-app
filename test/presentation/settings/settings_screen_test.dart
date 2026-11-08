@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pomodoro_app/l10n/app_localizations.dart';
+import 'package:pomodoro_app/platform/focus/focus_adapter.dart';
+import 'package:pomodoro_app/presentation/settings/settings_providers.dart';
 import 'package:pomodoro_app/presentation/settings/settings_screen.dart';
 
 import '../../support/test_settings_overrides.dart';
@@ -10,7 +12,15 @@ void main() {
   testWidgets('SettingsScreen shows grouped sections', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [testAppSettingsStreamOverride],
+        overrides: [
+          testAppSettingsStreamOverride,
+          focusCapabilitiesProvider.overrideWithValue(
+            const FocusCapabilities(
+              strictAvailable: false,
+              whitelistAvailable: false,
+            ),
+          ),
+        ],
         child: MaterialApp(
           locale: const Locale('id'),
           localizationsDelegates: AppLocalizations.localizationsDelegates,

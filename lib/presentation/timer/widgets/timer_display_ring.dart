@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:pomodoro_app/app/theme/segment_semantic_color.dart';
+import 'package:pomodoro_app/domain/common/enums.dart';
 import 'package:pomodoro_app/presentation/timer/timer_format.dart';
 
 /// Large timer readout with optional circular progress for an active session.
@@ -6,6 +8,7 @@ class TimerDisplayRing extends StatelessWidget {
   const TimerDisplayRing({
     required this.displaySec,
     required this.isCountdown,
+    required this.segmentType,
     this.plannedSec,
     this.subtitle,
     this.centerChild,
@@ -15,6 +18,7 @@ class TimerDisplayRing extends StatelessWidget {
 
   final int displaySec;
   final bool isCountdown;
+  final SegmentType segmentType;
   final int? plannedSec;
   final String? subtitle;
   final Widget? centerChild;
@@ -34,10 +38,7 @@ class TimerDisplayRing extends StatelessWidget {
                 displaySec,
                 forceHours: !isCountdown && displaySec >= 3600,
               ),
-              style: theme.textTheme.displaySmall?.copyWith(
-                fontWeight: FontWeight.w600,
-                fontFeatures: const [FontFeature.tabularFigures()],
-              ),
+              style: theme.textTheme.displaySmall,
             ),
         if (subtitle != null) ...[
           const SizedBox(height: 4),
@@ -56,6 +57,8 @@ class TimerDisplayRing extends StatelessWidget {
     }
 
     final progress = _progressValue();
+    final ringColor = segmentSemanticColor(theme.colorScheme, segmentType);
+    final trackColor = theme.colorScheme.surfaceContainerHighest;
 
     return SizedBox(
       width: 220,
@@ -70,13 +73,14 @@ class TimerDisplayRing extends StatelessWidget {
                 ? CircularProgressIndicator(
                     value: progress,
                     strokeWidth: 10,
-                    backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                    color: ringColor,
+                    backgroundColor: trackColor,
                   )
                 : CircularProgressIndicator(
                     value: 1,
                     strokeWidth: 10,
-                    color: theme.colorScheme.surfaceContainerHighest,
-                    backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                    color: ringColor,
+                    backgroundColor: trackColor,
                   ),
           ),
           readout,

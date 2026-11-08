@@ -5,7 +5,8 @@ import 'package:pomodoro_app/domain/tag/tag.dart';
 import 'package:pomodoro_app/l10n/app_localizations.dart';
 import 'package:pomodoro_app/presentation/l10n/l10n_extensions.dart';
 import 'package:pomodoro_app/presentation/shared/format_helpers.dart';
-import 'package:pomodoro_app/presentation/shared/tag_color_dot.dart';
+import 'package:pomodoro_app/app/theme/chart_series_colors.dart';
+import 'package:pomodoro_app/presentation/shared/phosphor_icon_data.dart';
 
 // --- Period / filters -------------------------------------------------------
 
@@ -187,9 +188,10 @@ class StatisticTagBreakdown extends StatelessWidget {
       return Text(l10n.noTagBreakdown);
     }
     final maxFocus = summary.byTag.first.focusDurationSec;
+    final scheme = Theme.of(context).colorScheme;
     return Column(
       children: [
-        for (final item in summary.byTag)
+        for (var i = 0; i < summary.byTag.length; i++)
           Card(
             margin: const EdgeInsets.only(bottom: 8),
             child: Padding(
@@ -199,20 +201,25 @@ class StatisticTagBreakdown extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      TagColorDot(hex: item.tagColor, size: 12),
-                      const SizedBox(width: 8),
-                      Expanded(child: Text(item.tagName)),
-                      Text(formatDurationSec(item.focusDurationSec, l10n)),
+                      Expanded(child: Text(summary.byTag[i].tagName)),
+                      Text(
+                        formatDurationSec(
+                          summary.byTag[i].focusDurationSec,
+                          l10n,
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 8),
                   LinearProgressIndicator(
                     value: maxFocus == 0
                         ? 0.0
-                        : item.focusDurationSec / maxFocus,
+                        : summary.byTag[i].focusDurationSec / maxFocus,
+                    color: chartSeriesColorForIndex(scheme, i),
+                    backgroundColor: scheme.surfaceContainerHighest,
                   ),
                   const SizedBox(height: 4),
-                  Text(l10n.sessionCount(item.sessionCount)),
+                  Text(l10n.sessionCount(summary.byTag[i].sessionCount)),
                 ],
               ),
             ),
@@ -240,7 +247,11 @@ class StatisticNoData extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.bar_chart_outlined, size: 48, color: theme.colorScheme.outline),
+          Icon(
+            PresentationPhosphorIcons.chartBar,
+            size: 48,
+            color: theme.colorScheme.outline,
+          ),
           const SizedBox(height: 12),
           Text(
             hasFilters ? l10n.noDataForFilter : l10n.noStatisticData,

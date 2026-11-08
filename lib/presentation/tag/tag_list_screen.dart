@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:pomodoro_app/presentation/shared/phosphor_icon_data.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pomodoro_app/domain/common/result.dart';
 import 'package:pomodoro_app/domain/tag/tag.dart';
 import 'package:pomodoro_app/presentation/l10n/l10n_extensions.dart';
-import 'package:pomodoro_app/presentation/shared/color_helpers.dart';
 import 'package:pomodoro_app/presentation/tag/tag_error_messages.dart';
 import 'package:pomodoro_app/presentation/tag/tag_providers.dart';
 
@@ -19,13 +19,13 @@ class TagListScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(PresentationPhosphorIcons.arrowLeft),
           onPressed: () => context.pop(),
         ),
         title: Text(l10n.manageTagsTitle),
         actions: [
           IconButton(
-            icon: const Icon(Icons.add),
+            icon: const Icon(PresentationPhosphorIcons.plus),
             tooltip: l10n.newTagTooltip,
             onPressed: () => context.push('/tags/new'),
           ),
@@ -110,14 +110,14 @@ class _TagListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = parseHexColorOr(tag.color, Colors.indigo);
+    final scheme = Theme.of(context).colorScheme;
     return ListTile(
       leading: ReorderableDragStartListener(
         index: index,
-        child: Icon(Icons.drag_handle, color: color),
+        child: Icon(PresentationPhosphorIcons.dotsSix, color: scheme.onSurfaceVariant),
       ),
       title: Text(tag.name),
-      trailing: const Icon(Icons.chevron_right),
+      trailing: const Icon(PresentationPhosphorIcons.caretRight),
       onTap: onTap,
     );
   }

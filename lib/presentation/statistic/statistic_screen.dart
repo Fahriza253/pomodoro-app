@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pomodoro_app/presentation/shared/phosphor_icon_data.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pomodoro_app/domain/tag/tag.dart';
 import 'package:pomodoro_app/presentation/l10n/l10n_extensions.dart';
@@ -32,7 +33,7 @@ class StatisticScreen extends ConsumerWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.error_outline, size: 48),
+                    Icon(PresentationPhosphorIcons.warningCircle(), size: 48),
                     const SizedBox(height: 12),
                     Text(
                       l10n.loadStatisticFailed,

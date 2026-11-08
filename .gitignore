@@ -46,4 +46,6 @@ ios/Runner.xcodeproj/project.xcworkspace/xcuserdata/
 **/*.mobileprovision
 **/*.p12
 **/*.cer
-android/.kotlin/
+android/.kotlin/sessions/kotlin-compiler-4189912084411159886.salive
+# Widget Preview related
+.widget_preview/

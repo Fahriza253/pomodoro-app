@@ -1,6 +1,7 @@
 import 'package:pomodoro_app/application/timer/config_snapshot_factory.dart';
 import 'package:pomodoro_app/application/timer/lifecycle_result.dart';
 import 'package:pomodoro_app/application/timer/persist_reason.dart';
+import 'package:pomodoro_app/application/timer/session_segment_writer.dart';
 import 'package:pomodoro_app/application/timer/timer_state_builder.dart';
 import 'package:pomodoro_app/data/repositories/active_timer_state_repository.dart';
 import 'package:pomodoro_app/data/repositories/session_repository.dart';
@@ -23,16 +24,25 @@ import 'package:uuid/uuid.dart';
 /// Owns [TimerEngine] and durable Session/Segment/`ActiveTimerState` writes.
 class SessionLifecycle {
   SessionLifecycle({
-    required this._sessionRepository,
+    required SessionRepository sessionRepository,
     required this._tagRepository,
     required this._activeTimerStateRepository,
-    required this._clock,
+    required ClockAdapter clock,
+    SessionSegmentWriter? segmentWriter,
     TimerEngine? engine,
     SegmentPlanner? planner,
     ConfigSnapshotFactory? configSnapshotFactory,
     TimerStateBuilder? stateBuilder,
     Uuid? uuid,
-  }) : _engine = engine ?? TimerEngine(planner: planner),
+  }) : _sessionRepository = sessionRepository,
+       _clock = clock,
+       _segmentWriter =
+           segmentWriter ??
+           SessionSegmentWriter(
+             sessionRepository: sessionRepository,
+             clock: clock,
+           ),
+       _engine = engine ?? TimerEngine(planner: planner),
        _planner = planner ?? const SegmentPlanner(),
        _configSnapshotFactory =
            configSnapshotFactory ?? const ConfigSnapshotFactory(),
@@ -43,6 +53,7 @@ class SessionLifecycle {
   final TagRepository _tagRepository;
   final ActiveTimerStateRepository _activeTimerStateRepository;
   final ClockAdapter _clock;
+  final SessionSegmentWriter _segmentWriter;
   final TimerEngine _engine;
   final SegmentPlanner _planner;
   final ConfigSnapshotFactory _configSnapshotFactory;
@@ -54,7 +65,6 @@ class SessionLifecycle {
   String? _tagName;
   List<String> _segmentIds = const [];
 
-  TimerEngine get engine => _engine;
   TimerEngineState get currentState => _engine.currentState;
   String? get sessionId => _sessionId;
   String? get tagId => _tagId;
@@ -163,12 +173,15 @@ class SessionLifecycle {
       );
     }).toList();
     _segmentIds = [..._segmentIds, ...newInputs.map((s) => s.id)];
-    await _sessionRepository.appendSegments(
-      _sessionId!,
-      newInputs,
+    await _segmentWriter.appendAndStart(
+      sessionId: _sessionId!,
+      newSegments: newInputs,
       pomodoroCyclesTarget: after.pomodoroCyclesTarget,
+      activeSegmentId: _segmentIds[after.currentSegmentIndex],
+      state: after,
+      totalActiveSec: totalActiveSec(after),
+      totalPausedSec: totalPausedSec(after),
     );
-    await _markCurrentSegmentStarted();
     await _persistAfterCommand(before, PersistReason.segmentTransition);
     return _result(before);
   }
@@ -405,7 +418,13 @@ class SessionLifecycle {
     return paused < 0 ? 0 : paused;
   }
 
+  bool _disposed = false;
+
   void dispose() {
+    if (_disposed) {
+      return;
+    }
+    _disposed = true;
     _engine.dispose();
   }
 
@@ -509,150 +528,17 @@ class SessionLifecycle {
     if (_sessionId != null &&
         (before.currentSegmentIndex != after.currentSegmentIndex ||
             before.phase != after.phase)) {
-      await _syncSegmentProgress(before, after);
+      await _segmentWriter.syncOnTransition(
+        sessionId: _sessionId!,
+        segmentIds: _segmentIds,
+        before: before,
+        after: after,
+        totalActiveSec: totalActiveSec(after),
+        totalPausedSec: totalPausedSec(after),
+      );
     }
 
     await persistActiveState(reason);
-  }
-
-  Future<void> _syncSegmentProgress(
-    TimerEngineState before,
-    TimerEngineState after,
-  ) async {
-    final nowMs = _clock.nowUtc().millisecondsSinceEpoch;
-    final from = before.currentSegmentIndex;
-    final to = after.currentSegmentIndex;
-
-    if (from >= 0 && from < _segmentIds.length && from != to) {
-      final completedId = _segmentIds[from];
-      final segment = before.currentSegment;
-      final actualSec = segment?.type == SegmentType.flexible
-          ? before.elapsedActiveSecAt(_clock.nowUtc())
-          : segment?.plannedSec ?? 0;
-      await _sessionRepository.updateSegmentProgress(
-        UpdateSegmentInput(
-          sessionId: _sessionId!,
-          segmentId: completedId,
-          segmentStatus: SegmentStatus.completed,
-          actualSec: actualSec,
-          segmentPausedSec: before.segmentPausedSec,
-          endedAtUtcMs: nowMs,
-          pomodoroFocusCount: after.pomodoroFocusCount,
-          pomodoroCyclesCompleted: after.pomodoroCyclesCompleted,
-          totalActiveSec: totalActiveSec(after),
-          totalPausedSec: totalPausedSec(after),
-          updatedAtUtcMs: nowMs,
-        ),
-      );
-
-      // Pending rest skipped from post-focus prompt: mark jumped rests
-      // as skipped / actualSec=0 (BR-TIMER-004). Includes sessionComplete
-      // landing on the skipped long_rest itself.
-      final skipEndExclusive =
-          after.phase == EnginePhase.sessionComplete &&
-              after.currentSegment?.isRest == true
-          ? to + 1
-          : to;
-      for (var i = from + 1; i < skipEndExclusive; i++) {
-        if (i < 0 || i >= _segmentIds.length || i >= before.segments.length) {
-          break;
-        }
-        if (!before.segments[i].isRest) {
-          continue;
-        }
-        await _sessionRepository.updateSegmentProgress(
-          UpdateSegmentInput(
-            sessionId: _sessionId!,
-            segmentId: _segmentIds[i],
-            segmentStatus: SegmentStatus.skipped,
-            actualSec: 0,
-            endedAtUtcMs: nowMs,
-            pomodoroFocusCount: after.pomodoroFocusCount,
-            pomodoroCyclesCompleted: after.pomodoroCyclesCompleted,
-            totalActiveSec: totalActiveSec(after),
-            totalPausedSec: totalPausedSec(after),
-            updatedAtUtcMs: nowMs,
-          ),
-        );
-      }
-    } else if (after.phase == EnginePhase.sessionComplete &&
-        before.phase != EnginePhase.sessionComplete &&
-        from == to &&
-        from >= 0 &&
-        from < _segmentIds.length) {
-      // Last segment completed without advancing index (typical final rest).
-      final segment = before.currentSegment;
-      final actualSec = segment?.type == SegmentType.flexible
-          ? before.elapsedActiveSecAt(_clock.nowUtc())
-          : segment?.plannedSec ?? 0;
-      await _sessionRepository.updateSegmentProgress(
-        UpdateSegmentInput(
-          sessionId: _sessionId!,
-          segmentId: _segmentIds[from],
-          segmentStatus: SegmentStatus.completed,
-          actualSec: actualSec,
-          segmentPausedSec: before.segmentPausedSec,
-          endedAtUtcMs: nowMs,
-          pomodoroFocusCount: after.pomodoroFocusCount,
-          pomodoroCyclesCompleted: after.pomodoroCyclesCompleted,
-          totalActiveSec: totalActiveSec(after),
-          totalPausedSec: totalPausedSec(after),
-          updatedAtUtcMs: nowMs,
-        ),
-      );
-    }
-
-    if (after.phase == EnginePhase.running &&
-        to >= 0 &&
-        to < _segmentIds.length &&
-        from != to) {
-      await _markCurrentSegmentStarted();
-    }
-
-    if (after.phase == EnginePhase.sessionComplete ||
-        after.phase == EnginePhase.segmentComplete) {
-      await _updateSessionCounters(after);
-    }
-  }
-
-  Future<void> _markCurrentSegmentStarted() async {
-    final state = _engine.currentState;
-    final index = state.currentSegmentIndex;
-    if (index < 0 || index >= _segmentIds.length) {
-      return;
-    }
-    final nowMs = _clock.nowUtc().millisecondsSinceEpoch;
-    await _sessionRepository.updateSegmentProgress(
-      UpdateSegmentInput(
-        sessionId: _sessionId!,
-        segmentId: _segmentIds[index],
-        segmentStatus: SegmentStatus.active,
-        startedAtUtcMs: nowMs,
-        pomodoroFocusCount: state.pomodoroFocusCount,
-        pomodoroCyclesCompleted: state.pomodoroCyclesCompleted,
-        totalActiveSec: totalActiveSec(state),
-        totalPausedSec: totalPausedSec(state),
-        updatedAtUtcMs: nowMs,
-      ),
-    );
-  }
-
-  Future<void> _updateSessionCounters(TimerEngineState state) async {
-    final nowMs = _clock.nowUtc().millisecondsSinceEpoch;
-    if (_sessionId == null || state.currentSegmentIndex < 0) {
-      return;
-    }
-    await _sessionRepository.updateSegmentProgress(
-      UpdateSegmentInput(
-        sessionId: _sessionId!,
-        segmentId: _segmentIds[state.currentSegmentIndex],
-        pomodoroFocusCount: state.pomodoroFocusCount,
-        pomodoroCyclesCompleted: state.pomodoroCyclesCompleted,
-        totalActiveSec: totalActiveSec(state),
-        totalPausedSec: totalPausedSec(state),
-        updatedAtUtcMs: nowMs,
-      ),
-    );
   }
 
   Future<void> _discardActiveSession() async {
@@ -668,61 +554,14 @@ class SessionLifecycle {
     if (_sessionId == null) {
       return;
     }
-    final now = _clock.nowUtc();
-    final nowMs = now.millisecondsSinceEpoch;
     final state = _engine.currentState;
-    final dbSegments = await _sessionRepository.getSegmentsBySessionId(
-      _sessionId!,
-    );
-    final currentId = _currentSegmentId();
-
-    final finalizeSegments = dbSegments.map((dbSeg) {
-      final isCurrent = dbSeg.id == currentId;
-      var status = dbSeg.segmentStatus;
-      var actual = dbSeg.actualSec;
-      var ended = dbSeg.endedAtUtcMs;
-
-      if (isCurrent && status != SegmentStatus.completed) {
-        if (terminalStatus == SessionStatus.completed) {
-          status = SegmentStatus.completed;
-          actual = state.isFlexible
-              ? state.elapsedActiveSecAt(now)
-              : (state.currentSegment?.plannedSec ?? dbSeg.plannedSec);
-        } else {
-          // Abandoned / failed: keep elapsed active time for Timeline + stats.
-          status = SegmentStatus.completed;
-          actual = state.currentSegmentElapsedActiveSecAt(now);
-        }
-        ended = nowMs;
-      } else if (terminalStatus != SessionStatus.completed &&
-          (status == SegmentStatus.pending || status == SegmentStatus.active)) {
-        status = SegmentStatus.skipped;
-        actual = 0;
-        ended = nowMs;
-      }
-
-      return FinalizeSegmentInput(
-        segmentId: dbSeg.id,
-        actualSec: actual,
-        segmentPausedSec: isCurrent
-            ? state.segmentPausedSec
-            : dbSeg.segmentPausedSec,
-        segmentStatus: status,
-        startedAtUtcMs: dbSeg.startedAtUtcMs,
-        endedAtUtcMs: ended ?? (status == SegmentStatus.pending ? null : nowMs),
-      );
-    }).toList();
-
-    await _sessionRepository.finalizeSession(
-      FinalizeSessionInput(
-        sessionId: _sessionId!,
-        terminalStatus: terminalStatus,
-        endedAtUtcMs: nowMs,
-        totalActiveSec: totalActiveSec(state),
-        totalPausedSec: totalPausedSec(state),
-        segments: finalizeSegments,
-        updatedAtUtcMs: nowMs,
-      ),
+    await _segmentWriter.writeTerminal(
+      sessionId: _sessionId!,
+      segmentIds: _segmentIds,
+      state: state,
+      terminalStatus: terminalStatus,
+      totalActiveSec: totalActiveSec(state),
+      totalPausedSec: totalPausedSec(state),
     );
   }
 
