@@ -35,15 +35,16 @@ void main() {
       ),
     );
     await tester.pump();
+    await tester.pump();
 
     expect(completed, isTrue);
   });
 
-  test('splash sequence duration is 1600ms per design', () {
-    expect(SplashScreen.sequenceDuration, const Duration(milliseconds: 1600));
+  test('splash sequence duration is 2000ms per design', () {
+    expect(SplashScreen.sequenceDuration, const Duration(milliseconds: 2000));
   });
 
-  testWidgets('motion sequence completes after 1600ms', (tester) async {
+  testWidgets('motion sequence completes after 2000ms', (tester) async {
     tester.platformDispatcher.accessibilityFeaturesTestValue =
         const FakeAccessibilityFeatures();
     addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
@@ -57,10 +58,11 @@ void main() {
     await tester.pump();
     expect(completed, isFalse);
 
-    await tester.pump(const Duration(milliseconds: 1599));
+    await tester.pump(const Duration(milliseconds: 1999));
     expect(completed, isFalse);
 
     await tester.pump(const Duration(milliseconds: 2));
+    await tester.pump();
     expect(completed, isTrue);
   });
 
@@ -91,9 +93,8 @@ void main() {
       await tester.pump();
 
       expect(find.byType(SplashScreen), findsOneWidget);
-      expect(find.text('START'), findsNothing);
 
-      await tester.pump(const Duration(milliseconds: 1600));
+      await tester.pump(const Duration(milliseconds: 2000));
       await tester.pumpAndSettle();
 
       expect(find.byType(SplashScreen), findsNothing);
@@ -135,5 +136,42 @@ void main() {
 
     expect(find.byType(SplashScreen), findsNothing);
     expect(find.text('START'), findsOneWidget);
+  });
+
+  testWidgets('holds the wordmark until destinationReady then completes', (
+    tester,
+  ) async {
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures();
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+
+    var completed = false;
+    const splashKey = Key('splash');
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SplashScreen(
+          key: splashKey,
+          destinationReady: false,
+          onSequenceComplete: () => completed = true,
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 2000));
+    expect(completed, isFalse);
+    expect(find.text('Pomodoro'), findsOneWidget);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SplashScreen(
+          key: splashKey,
+          destinationReady: true,
+          onSequenceComplete: () => completed = true,
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 2000));
+    expect(completed, isTrue);
   });
 }

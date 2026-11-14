@@ -3,24 +3,23 @@ enum BootstrapPhase {
   /// Local database open or seed failed; marketing beat skipped.
   databaseError,
 
-  /// Waiting on `max(marketing beat, DB ready)`.
+  /// Waiting on the local database. Marketing beat runs as an overlay.
   splash,
 
-  /// Main navigation may mount.
+  /// Main navigation may mount under the splash overlay.
   ready,
 }
 
-/// Chooses the bootstrap phase from DB readiness and the marketing beat.
+/// Chooses the bootstrap phase from DB readiness.
 abstract final class BootstrapGate {
   static BootstrapPhase phase({
     required bool dbHasError,
     required bool dbHasValue,
-    required bool marketingBeatComplete,
   }) {
     if (dbHasError) {
       return BootstrapPhase.databaseError;
     }
-    if (!dbHasValue || !marketingBeatComplete) {
+    if (!dbHasValue) {
       return BootstrapPhase.splash;
     }
     return BootstrapPhase.ready;

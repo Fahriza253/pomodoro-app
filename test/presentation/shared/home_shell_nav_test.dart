@@ -38,6 +38,14 @@ void main() {
       ),
     );
 
+    final destinations = homeShellNavigationDestinations(
+      hasActiveSession: false,
+      l10n: l10n,
+    );
+    for (final destination in destinations) {
+      expect(destination.tooltip, '');
+    }
+
     expect(find.byType(Icon), findsNWidgets(4));
     expect(find.byIcon(Icons.timer_outlined), findsNothing);
     expect(find.byIcon(Icons.settings_outlined), findsNothing);

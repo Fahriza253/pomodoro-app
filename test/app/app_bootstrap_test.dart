@@ -26,7 +26,7 @@ void main() {
       expect(container.read(bootstrapPhaseProvider), BootstrapPhase.splash);
     });
 
-    test('becomes ready when DB and beat complete', () async {
+    test('becomes ready when DB has value', () async {
       final db = openAppDatabase(inMemory: true);
       addTearDown(db.close);
       await DatabaseSeeder(db).seedIfNeeded();
@@ -37,7 +37,6 @@ void main() {
       addTearDown(container.dispose);
 
       await container.read(appDatabaseProvider.future);
-      container.read(marketingBeatCompleteProvider.notifier).state = true;
 
       expect(container.read(bootstrapPhaseProvider), BootstrapPhase.ready);
       expect(container.read(bootstrapReadyProvider), isTrue);

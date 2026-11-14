@@ -128,7 +128,12 @@ final timerDefaultTagProvider = Provider<void>((ref) {
   final tagsAsync = ref.watch(timerTagListProvider);
   final ui = ref.watch(timerUiProvider);
   tagsAsync.whenData((tags) {
-    if (tags.isNotEmpty && ui.selectedTagId == null) {
+    if (tags.isEmpty) {
+      return;
+    }
+    final selected = ui.selectedTagId;
+    final exists = selected != null && tags.any((tag) => tag.id == selected);
+    if (!exists) {
       ref.read(timerUiProvider.notifier).setTag(tags.first.id);
     }
   });

@@ -21,7 +21,6 @@ import 'package:pomodoro_app/presentation/timer/timer_format.dart';
 import 'package:pomodoro_app/presentation/timer/timer_layout.dart';
 import 'package:pomodoro_app/presentation/timer/timer_providers.dart';
 import 'package:pomodoro_app/presentation/timer/timer_ui_state.dart';
-import 'package:pomodoro_app/presentation/timer/widgets/mode_selector.dart';
 import 'package:pomodoro_app/presentation/timer/widgets/recovery_dialog.dart';
 import 'package:pomodoro_app/presentation/timer/widgets/slide_to_stop.dart';
 import 'package:pomodoro_app/presentation/timer/widgets/tag_picker_field.dart';
@@ -210,7 +209,8 @@ class _TimerScreenState extends ConsumerState<TimerScreen> {
       await runTimerAction(
         context,
         ref,
-        () async => ref.read(timerCoordinatorProvider).beginPomodoroStart(tagId),
+        () async =>
+            ref.read(timerCoordinatorProvider).beginPomodoroStart(tagId),
       );
       return;
     }
@@ -307,11 +307,6 @@ class _IdleBody extends ConsumerWidget {
       header: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          ModeSelector(
-            selected: ui.selectedMode,
-            onChanged: ref.read(timerUiProvider.notifier).setMode,
-          ),
-          const SizedBox(height: 16),
           Align(
             alignment: Alignment.center,
             child: ConstrainedBox(
@@ -333,9 +328,8 @@ class _IdleBody extends ConsumerWidget {
             ),
             style: Theme.of(context).textTheme.displaySmall,
           ),
-          const SizedBox(height: 4),
           if (ui.selectedMode == TimerMode.flexible && reminderEnabled) ...[
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
             Text(
               l10n.flexibleReminderEveryMinutes(reminderMin ?? 25),
               style: Theme.of(context).textTheme.bodyMedium,
@@ -346,7 +340,9 @@ class _IdleBody extends ConsumerWidget {
       ),
       footer: TimerButtonSlot(
         child: FilledButton(
-          onPressed: canStartSession && ui.selectedTagId != null ? onStart : null,
+          onPressed: canStartSession && ui.selectedTagId != null
+              ? onStart
+              : null,
           style: FilledButton.styleFrom(
             minimumSize: const Size(double.infinity, 52),
             padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),

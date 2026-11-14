@@ -6,7 +6,6 @@ import 'package:pomodoro_app/app/providers.dart';
 import 'package:pomodoro_app/application/bootstrap/bootstrap_gate.dart';
 import 'package:pomodoro_app/presentation/settings/alert_settings_screen.dart';
 import 'package:pomodoro_app/presentation/splash/database_error_screen.dart';
-import 'package:pomodoro_app/presentation/splash/splash_screen.dart';
 import 'package:pomodoro_app/presentation/settings/appearance_settings_screen.dart';
 import 'package:pomodoro_app/presentation/settings/focus_settings_screen.dart';
 import 'package:pomodoro_app/presentation/settings/platform_settings_screen.dart';
@@ -57,9 +56,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: _bootstrapSplashPath,
-        builder: (context, state) => SplashScreen(
-          onSequenceComplete: () => markMarketingBeatComplete(ref),
-        ),
+        builder: (context, state) => const SizedBox.expand(),
       ),
       GoRoute(
         path: _bootstrapDbErrorPath,

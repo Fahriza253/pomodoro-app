@@ -1,36 +1,73 @@
 import 'package:flutter/widgets.dart';
 
-/// Builds [IconData] for icons bundled in the `phosphor_flutter` package.
+/// Phosphor-glyphs for the home shell (see MASTER bottom-nav mapping).
 ///
 /// We avoid importing generated `PhosphorIcons*` symbols because `phosphor_flutter`
 /// 2.1.0 subclasses final [IconData] and does not compile on Dart 3.12+ yet.
-IconData phosphorIcon(int codePoint, {required bool filled}) {
-  return IconData(
-    codePoint,
-    fontFamily: filled ? 'PhosphorFill' : 'PhosphorRegular',
-    fontPackage: 'phosphor_flutter',
+abstract final class HomeShellPhosphorIcons {
+  static const _pkg = 'phosphor_flutter';
+  static const _regular = 'PhosphorRegular';
+  static const _fill = 'PhosphorFill';
+
+  static const _timerRegular = IconData(
+    0xe492,
+    fontFamily: _regular,
+    fontPackage: _pkg,
     matchTextDirection: true,
   );
-}
-
-/// Code points for bottom navigation (MASTER mapping).
-abstract final class HomeShellPhosphorIcons {
-  static const timerCodePoint = 0xe492;
-  static const clockCodePoint = 0xe19a;
-  static const chartBarCodePoint = 0xe150;
-  static const gearCodePoint = 0xe270;
-
+  static const _timerFill = IconData(
+    0xe492,
+    fontFamily: _fill,
+    fontPackage: _pkg,
+    matchTextDirection: true,
+  );
   static IconData timer({required bool selected}) =>
-      phosphorIcon(timerCodePoint, filled: selected);
+      selected ? _timerFill : _timerRegular;
 
+  static const _clockRegular = IconData(
+    0xe19a,
+    fontFamily: _regular,
+    fontPackage: _pkg,
+    matchTextDirection: true,
+  );
+  static const _clockFill = IconData(
+    0xe19a,
+    fontFamily: _fill,
+    fontPackage: _pkg,
+    matchTextDirection: true,
+  );
   static IconData clock({required bool selected}) =>
-      phosphorIcon(clockCodePoint, filled: selected);
+      selected ? _clockFill : _clockRegular;
 
+  static const _chartBarRegular = IconData(
+    0xe150,
+    fontFamily: _regular,
+    fontPackage: _pkg,
+    matchTextDirection: true,
+  );
+  static const _chartBarFill = IconData(
+    0xe150,
+    fontFamily: _fill,
+    fontPackage: _pkg,
+    matchTextDirection: true,
+  );
   static IconData chartBar({required bool selected}) =>
-      phosphorIcon(chartBarCodePoint, filled: selected);
+      selected ? _chartBarFill : _chartBarRegular;
 
+  static const _gearRegular = IconData(
+    0xe270,
+    fontFamily: _regular,
+    fontPackage: _pkg,
+    matchTextDirection: true,
+  );
+  static const _gearFill = IconData(
+    0xe270,
+    fontFamily: _fill,
+    fontPackage: _pkg,
+    matchTextDirection: true,
+  );
   static IconData gear({required bool selected}) =>
-      phosphorIcon(gearCodePoint, filled: selected);
+      selected ? _gearFill : _gearRegular;
 }
 
 /// Phosphor-glyphs for screens under `lib/presentation/` (regular default).
@@ -163,6 +200,18 @@ abstract final class PresentationPhosphorIcons {
   static IconData checkCircle({bool filled = false}) =>
       filled ? checkCircleFill : checkCircleRegular;
 
+  static const pencilSimple = IconData(
+    0xe3b4,
+    fontFamily: _regular,
+    fontPackage: _pkg,
+    matchTextDirection: true,
+  );
+  static const trashSimple = IconData(
+    0xe4a8,
+    fontFamily: _regular,
+    fontPackage: _pkg,
+    matchTextDirection: true,
+  );
   static const pauseRegular = IconData(
     0xe39e,
     fontFamily: _regular,

@@ -12,6 +12,7 @@ import 'package:pomodoro_app/data/repositories/tag_repository.dart';
 import 'package:pomodoro_app/domain/tag/tag_inputs.dart';
 
 import 'package:pomodoro_app/presentation/shared/phosphor_icon_data.dart';
+import 'package:pomodoro_app/presentation/timer/widgets/tag_picker_field.dart';
 
 import '../../support/test_settings_overrides.dart';
 
@@ -24,9 +25,7 @@ const _validPomodoro = TagModeConfigPomodoro(
 );
 
 void main() {
-  testWidgets('timer idle shows mode selector and start button', (
-    tester,
-  ) async {
+  testWidgets('timer idle shows tag picker and start button', (tester) async {
     final db = openAppDatabase(inMemory: true);
     addTearDown(db.close);
     await DatabaseSeeder(db).seedIfNeeded();
@@ -45,10 +44,18 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    expect(find.text('Pomodoro'), findsOneWidget);
-    expect(find.text('Flexible'), findsOneWidget);
+    expect(find.byType(TagPickerField), findsOneWidget);
     expect(find.text('START'), findsOneWidget);
     expect(find.textContaining('General'), findsOneWidget);
+    expect(find.text('Flexible'), findsNothing);
+
+    await tester.tap(find.byType(TagPickerField));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Select a tag'), findsOneWidget);
+    expect(find.text('Pomodoro'), findsWidgets);
+    expect(find.text('Flexible'), findsOneWidget);
+    expect(find.text('Manage tags'), findsOneWidget);
   });
 
   testWidgets(
@@ -82,8 +89,7 @@ void main() {
     (tester) async {
       final db = await _pumpIdleTimer(tester);
 
-      await tester.tap(find.text('Flexible'));
-      await tester.pumpAndSettle();
+      await _selectIdleMode(tester, 'Flexible');
 
       expect(find.text('00:00'), findsOneWidget);
       expect(find.text('Reminder: every 25 minutes'), findsOneWidget);
@@ -163,13 +169,14 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Flexible'));
-    await tester.pumpAndSettle();
+    await _selectIdleMode(tester, 'Flexible');
     await tester.tap(find.text('START'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
 
-    await tester.tap(find.byIcon(PresentationPhosphorIcons.pause(filled: true)));
+    await tester.tap(
+      find.byIcon(PresentationPhosphorIcons.pause(filled: true)),
+    );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
 
@@ -200,6 +207,15 @@ void main() {
 
     await _flushDriftWatches(tester);
   });
+}
+
+Future<void> _selectIdleMode(WidgetTester tester, String modeLabel) async {
+  await tester.tap(find.byType(TagPickerField));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(modeLabel));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('General').last);
+  await tester.pumpAndSettle();
 }
 
 Future<AppDatabase> _pumpIdleTimer(WidgetTester tester) async {

@@ -6,6 +6,7 @@ import 'package:pomodoro_app/app/app_bootstrap.dart';
 import 'package:pomodoro_app/app/providers.dart';
 import 'package:pomodoro_app/app/router.dart';
 import 'package:pomodoro_app/app/timer_providers.dart';
+import 'package:pomodoro_app/application/bootstrap/bootstrap_gate.dart';
 import 'package:pomodoro_app/domain/common/enums.dart';
 import 'package:pomodoro_app/l10n/app_localizations.dart';
 import 'package:pomodoro_app/platform/notifications/notification_adapter_io.dart';
@@ -13,6 +14,7 @@ import 'package:pomodoro_app/platform/notifications/notification_deep_link.dart'
 import 'package:pomodoro_app/presentation/l10n/locale_providers.dart';
 import 'package:pomodoro_app/presentation/settings/settings_providers.dart';
 import 'package:pomodoro_app/app/theme/app_theme.dart';
+import 'package:pomodoro_app/presentation/splash/splash_screen.dart';
 import 'package:pomodoro_app/presentation/timer/timer_lifecycle_observer.dart';
 
 /// Persisted theme as soon as the DB is open (including splash), not only after handoff.
@@ -21,14 +23,16 @@ final bootstrapThemeModeProvider = Provider<ThemeMode>((ref) {
   if (!db.hasValue) {
     return ThemeMode.system;
   }
-  return ref.watch(appSettingsStreamProvider).maybeWhen(
-    data: (settings) => switch (settings.theme) {
-      AppTheme.light => ThemeMode.light,
-      AppTheme.dark => ThemeMode.dark,
-      AppTheme.system => ThemeMode.system,
-    },
-    orElse: () => ThemeMode.system,
-  );
+  return ref
+      .watch(appSettingsStreamProvider)
+      .maybeWhen(
+        data: (settings) => switch (settings.theme) {
+          AppTheme.light => ThemeMode.light,
+          AppTheme.dark => ThemeMode.dark,
+          AppTheme.system => ThemeMode.system,
+        },
+        orElse: () => ThemeMode.system,
+      );
 });
 
 class PomodoroApp extends ConsumerWidget {
@@ -37,6 +41,7 @@ class PomodoroApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final bootstrapComplete = ref.watch(bootstrapReadyProvider);
+    final bootstrapPhase = ref.watch(bootstrapPhaseProvider);
     final themeMode = ref.watch(bootstrapThemeModeProvider);
 
     if (bootstrapComplete) {
@@ -51,6 +56,10 @@ class PomodoroApp extends ConsumerWidget {
       locale = Locale(ref.watch(localeCodeProvider));
     }
 
+    final showSplashOverlay =
+        !ref.watch(marketingBeatCompleteProvider) &&
+        bootstrapPhase != BootstrapPhase.databaseError;
+
     return TimerLifecycleObserver(
       child: MaterialApp.router(
         title: 'Pomodoro',
@@ -62,6 +71,19 @@ class PomodoroApp extends ConsumerWidget {
         theme: AppThemeData.light(),
         darkTheme: AppThemeData.dark(),
         routerConfig: router,
+        builder: (context, child) {
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              ?child,
+              if (showSplashOverlay)
+                SplashScreen(
+                  destinationReady: bootstrapComplete,
+                  onSequenceComplete: () => markMarketingBeatComplete(ref),
+                ),
+            ],
+          );
+        },
       ),
     );
   }

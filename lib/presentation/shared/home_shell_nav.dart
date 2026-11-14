@@ -27,11 +27,13 @@ List<NavigationDestination> homeShellNavigationDestinations({
         child: homeShellNavGlyph(HomeShellPhosphorIcons.timer(selected: true)),
       ),
       label: l10n.navTimer,
+      tooltip: '',
     ),
     NavigationDestination(
       icon: homeShellNavGlyph(HomeShellPhosphorIcons.clock(selected: false)),
       selectedIcon: homeShellNavGlyph(HomeShellPhosphorIcons.clock(selected: true)),
       label: l10n.navTimeline,
+      tooltip: '',
     ),
     NavigationDestination(
       icon: homeShellNavGlyph(HomeShellPhosphorIcons.chartBar(selected: false)),
@@ -39,11 +41,13 @@ List<NavigationDestination> homeShellNavigationDestinations({
         HomeShellPhosphorIcons.chartBar(selected: true),
       ),
       label: l10n.navStatistic,
+      tooltip: '',
     ),
     NavigationDestination(
       icon: homeShellNavGlyph(HomeShellPhosphorIcons.gear(selected: false)),
       selectedIcon: homeShellNavGlyph(HomeShellPhosphorIcons.gear(selected: true)),
       label: l10n.navSettings,
+      tooltip: '',
     ),
   ];
 }

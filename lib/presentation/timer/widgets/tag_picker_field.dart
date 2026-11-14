@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
+import 'package:pomodoro_app/domain/common/enums.dart';
 import 'package:pomodoro_app/domain/tag/tag.dart';
 import 'package:pomodoro_app/presentation/l10n/l10n_extensions.dart';
-import 'package:pomodoro_app/presentation/tag/tag_providers.dart';
 import 'package:pomodoro_app/presentation/shared/phosphor_icon_data.dart';
+import 'package:pomodoro_app/presentation/tag/tag_providers.dart';
 import 'package:pomodoro_app/presentation/timer/timer_providers.dart';
+import 'package:pomodoro_app/presentation/timer/widgets/tag_select_sheet.dart';
 
 class TagPickerField extends ConsumerWidget {
   const TagPickerField({required this.enabled, super.key});
@@ -18,6 +19,9 @@ class TagPickerField extends ConsumerWidget {
     final tagsAsync = ref.watch(timerTagListProvider);
     final ui = ref.watch(timerUiProvider);
     final selectedId = ui.selectedTagId;
+    final modeLabel = ui.selectedMode == TimerMode.pomodoro
+        ? l10n.modePomodoro
+        : l10n.modeFlexible;
 
     return tagsAsync.when(
       loading: () => ListTile(
@@ -42,8 +46,7 @@ class TagPickerField extends ConsumerWidget {
           borderRadius: BorderRadius.circular(12),
           child: InkWell(
             borderRadius: BorderRadius.circular(12),
-            onTap: enabled ? () => _showTagSheet(context, ref, tags) : null,
-            onLongPress: enabled ? () => context.push('/tags') : null,
+            onTap: enabled ? () => showTagSelectSheet(context, ref) : null,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
@@ -58,15 +61,14 @@ class TagPickerField extends ConsumerWidget {
                           selected?.name ?? l10n.selectTag,
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
-                        InkWell(
-                          onTap: enabled ? () => context.push('/tags') : null,
-                          child: Text(
-                            l10n.manageTags,
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(
-                                  color: Theme.of(context).colorScheme.primary,
-                                ),
-                          ),
+                        Text(
+                          modeLabel,
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
+                              ),
                         ),
                       ],
                     ),
@@ -79,54 +81,5 @@ class TagPickerField extends ConsumerWidget {
         );
       },
     );
-  }
-
-  Future<void> _showTagSheet(
-    BuildContext context,
-    WidgetRef ref,
-    List<Tag> tags,
-  ) async {
-    final l10n = context.l10n;
-    final selected = await showModalBottomSheet<String>(
-      context: context,
-      showDragHandle: true,
-      isScrollControlled: true,
-      builder: (context) {
-        final maxHeight = MediaQuery.sizeOf(context).height * 0.7;
-        return SafeArea(
-          child: SizedBox(
-            height: maxHeight,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                  child: Text(
-                    l10n.selectTagTitle,
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                ),
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: tags.length,
-                    itemBuilder: (context, index) {
-                      final tag = tags[index];
-                      return ListTile(
-                        leading: const Icon(PresentationPhosphorIcons.tag),
-                        title: Text(tag.name),
-                        onTap: () => Navigator.of(context).pop(tag.id),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-    if (selected != null) {
-      ref.read(timerUiProvider.notifier).setTag(selected);
-    }
   }
 }

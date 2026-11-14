@@ -6,6 +6,7 @@ import 'package:pomodoro_app/domain/common/enums.dart';
 import 'package:pomodoro_app/presentation/l10n/l10n_extensions.dart';
 import 'package:pomodoro_app/presentation/shared/app_layout.dart';
 import 'package:pomodoro_app/presentation/shared/home_shell_nav.dart';
+import 'package:pomodoro_app/presentation/shared/home_shell_navigation_bar_theme.dart';
 import 'package:pomodoro_app/presentation/statistic/statistic_providers.dart';
 import 'package:pomodoro_app/presentation/timer/timer_actions.dart';
 import 'package:pomodoro_app/presentation/timer/timer_providers.dart';
@@ -67,16 +68,19 @@ class HomeShell extends ConsumerWidget {
           heightFactor: 1,
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: kAppContentMaxWidth),
-            child: NavigationBar(
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              shadowColor: Colors.transparent,
-              surfaceTintColor: Colors.transparent,
-              selectedIndex: navigationShell.currentIndex,
-              onDestinationSelected: (index) => _onTap(context, ref, index),
-              destinations: homeShellNavigationDestinations(
-                hasActiveSession: hasActiveSession,
-                l10n: l10n,
+            child: Theme(
+              data: homeShellNavigationBarWrapperTheme(Theme.of(context)),
+              child: NavigationBar(
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                shadowColor: Colors.transparent,
+                surfaceTintColor: Colors.transparent,
+                selectedIndex: navigationShell.currentIndex,
+                onDestinationSelected: (index) => _onTap(context, ref, index),
+                destinations: homeShellNavigationDestinations(
+                  hasActiveSession: hasActiveSession,
+                  l10n: l10n,
+                ),
               ),
             ),
           ),

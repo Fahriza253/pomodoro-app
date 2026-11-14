@@ -9,6 +9,22 @@ const kTimerButtonMaxWidth = 200.0;
 
 const kTimerButtonRowGap = 12.0;
 
+const kTimerStagePadding = EdgeInsets.fromLTRB(24, 16, 24, 24);
+
+/// Share of leftover stage height used as margin around the middle visual.
+/// Split equally above and below the visual; the rest sits outside the cluster.
+const kTimerStageVisualMarginFraction = 0.30;
+
+const kTimerStageInnerSpacerFlex = 15;
+const kTimerStageOuterSpacerFlex = 35;
+
+double timerStageInnerSlotGap(double leftoverHeight) {
+  if (leftoverHeight <= 0) {
+    return 0;
+  }
+  return leftoverHeight * kTimerStageVisualMarginFraction / 2;
+}
+
 /// Centers a single timer action button and caps width on tablet/wide layouts.
 class TimerButtonSlot extends StatelessWidget {
   const TimerButtonSlot({required this.child, super.key});
@@ -74,8 +90,8 @@ class TimerControlGroup extends StatelessWidget {
   }
 }
 
-/// Full-height timer stage: [visual] stays vertically centered across states;
-/// optional [header]/[footer] sit above/below without shifting the focal point.
+/// Full-height timer stage. Leftover height is split 30/70: 30% is margin
+/// around [visual], 70% sits above [header] and below [footer].
 class TimerStageLayout extends StatelessWidget {
   const TimerStageLayout({
     required this.visual,
@@ -91,24 +107,42 @@ class TimerStageLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
-      child: Column(
-        children: [
-          ?header,
-          Expanded(
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(
-                  maxWidth: kAppContentMaxWidth,
-                ),
-                child: visual,
-              ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final visualSlot = ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: kAppContentMaxWidth),
+          child: visual,
+        );
+
+        if (!constraints.hasBoundedHeight) {
+          return Padding(
+            padding: kTimerStagePadding,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ?header,
+                visualSlot,
+                ?footer,
+              ],
             ),
+          );
+        }
+
+        return Padding(
+          padding: kTimerStagePadding,
+          child: Column(
+            children: [
+              const Spacer(flex: kTimerStageOuterSpacerFlex),
+              ?header,
+              const Spacer(flex: kTimerStageInnerSpacerFlex),
+              visualSlot,
+              const Spacer(flex: kTimerStageInnerSpacerFlex),
+              ?footer,
+              const Spacer(flex: kTimerStageOuterSpacerFlex),
+            ],
           ),
-          if (footer != null) ...[const SizedBox(height: 16), footer!],
-        ],
-      ),
+        );
+      },
     );
   }
 }
