@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
+
+import 'package:pomodoro_app/presentation/splash/splash_reveal_painter.dart';
 
 /// Brand splash while the local database opens / seeds.
 ///
@@ -7,7 +10,10 @@ class SplashScreen extends StatefulWidget {
   const SplashScreen({this.onSequenceComplete, super.key});
 
   /// Marketing beat length when motion is enabled.
-  static const sequenceDuration = Duration(milliseconds: 800);
+  static const sequenceDuration = Duration(milliseconds: 1600);
+
+  /// Wordmark intro ends here; circle exit reveal runs until `1.0`.
+  static const wordmarkPhaseEnd = 0.42;
 
   /// Fired once when the beat finishes, or immediately when animations are disabled.
   final VoidCallback? onSequenceComplete;
@@ -19,8 +25,9 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
-  late final Animation<double> _fade;
+  late final Animation<double> _wordmarkOpacity;
   late final Animation<double> _scale;
+  late final Animation<double> _reveal;
   var _notified = false;
 
   @override
@@ -30,18 +37,46 @@ class _SplashScreenState extends State<SplashScreen>
       vsync: this,
       duration: SplashScreen.sequenceDuration,
     );
-    final curved = CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOutCubic,
+    _wordmarkOpacity = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 0, end: 1),
+        weight: SplashScreen.wordmarkPhaseEnd * 100,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 1, end: 0),
+        weight: (1 - SplashScreen.wordmarkPhaseEnd) * 100,
+      ),
+    ]).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
     );
-    _fade = curved;
-    _scale = Tween<double>(begin: 0.92, end: 1).animate(curved);
+    _scale = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 0.92, end: 1),
+        weight: SplashScreen.wordmarkPhaseEnd * 100,
+      ),
+      TweenSequenceItem(
+        tween: ConstantTween<double>(1),
+        weight: (1 - SplashScreen.wordmarkPhaseEnd) * 100,
+      ),
+    ]).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
+    );
+    _reveal = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: Interval(
+          SplashScreen.wordmarkPhaseEnd,
+          1,
+          curve: Curves.easeInOutCubic,
+        ),
+      ),
+    );
     _controller.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
         _notifyComplete();
       }
     });
-    WidgetsBinding.instance.addPostFrameCallback((_) => _startSequence());
+    SchedulerBinding.instance.scheduleFrameCallback((_) => _startSequence());
   }
 
   void _startSequence() {
@@ -72,22 +107,60 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final size = MediaQuery.sizeOf(context);
+    final origin = Offset(size.width / 2, size.height / 2);
+    final overlayColor = Color.alphaBlend(
+      colors.primaryContainer.withValues(alpha: 0.42),
+      colors.surface,
+    );
+
     return Scaffold(
-      body: Center(
-        child: AnimatedBuilder(
-          animation: _controller,
-          builder: (context, child) {
-            return Opacity(
-              opacity: _fade.value,
-              child: Transform.scale(scale: _scale.value, child: child),
-            );
-          },
-          child: Text(
-            'Pomodoro',
-            style: Theme.of(
-              context,
-            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
-          ),
+      body: ColoredBox(
+        color: colors.surface,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            RepaintBoundary(
+              child: AnimatedBuilder(
+                animation: _reveal,
+                builder: (context, _) {
+                  return CustomPaint(
+                    painter: SplashRevealPainter(
+                      reveal: _reveal.value,
+                      origin: origin,
+                      overlayColor: overlayColor,
+                      ringColor: colors.primary,
+                      edgeColor: colors.primary,
+                    ),
+                    child: const SizedBox.expand(),
+                  );
+                },
+              ),
+            ),
+            RepaintBoundary(
+              child: AnimatedBuilder(
+                animation: _controller,
+                builder: (context, child) {
+                  return Opacity(
+                    opacity: _wordmarkOpacity.value,
+                    child: Transform.scale(
+                      scale: _scale.value,
+                      child: child,
+                    ),
+                  );
+                },
+                child: Center(
+                  child: Text(
+                    'Pomodoro',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

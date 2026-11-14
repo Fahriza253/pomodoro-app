@@ -5,35 +5,35 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [1.4.0] - 2026-11-08
+## [1.4.0] — 2026-11-08
 
 ### Added
 
-- Shared colors on the timer ring and session UI for focus, rest, and flexible segments
-- A fixed chart color palette for tag breakdown on Statistic instead of per-tag colors
-- Refreshed icons on bottom navigation and main screens
-- Inter typography for English and Indonesian
+- Shared **segment semantic colors** (`focus` / rest / flexible) for timer ring and session chrome
+- **Chart series palette** for Statistic tag breakdown (theme tokens, not per-Tag hex)
+- **Phosphor** icons across bottom navigation and main presentation screens (regular/fill convention)
+- **Inter** typography via `google_fonts` for EN/ID
 
 ### Changed
 
-- Tags keep only a name and presets; color pickers and saved tag colors are removed on upgrade
-- Active sessions use a segment-colored progress ring and neutral tag chips
-- Timeline and Statistic show tag names without color dots
-- Settings lists only options the device supports instead of warning cards for missing features
-- Splash and timer motion follow design timings; session-complete celebration respects reduced motion and stops after 1.5 seconds
+- **Tag UX**: name and presets only — no color UI; `Tags.color` removed (**Drift schema v7**)
+- **Timer** active session: segment-colored progress ring; neutral Tag chips
+- **Timeline / Statistic**: Tag labels only; no color swatches
+- **Settings**: capability-aware tiles (hide unsupported Focus, AOD, flash, and similar)
+- **Splash / timer motion**: MASTER durations and curves; session-complete Lottie capped at 1.5s with reduced-motion skip
 
 ### Removed
 
-- Tag color dots across the app
-- Settings degradation banners for unsupported platform features
+- `TagColorDot` and Tag hex from presentation read paths
+- Degradation banner cards on Settings for unsupported platform features
 
 ### Known limitations (still true in 1.4.0)
 
-- You still cannot add past sessions by hand
-- On iOS, focus modes and background behavior remain limited compared with Android
-- On desktop, in-app alert sound only; OS-level alert parity is not shipped
-- Local data is not encrypted at rest
-- Vibration alerts remain unreliable in the foreground and background
+- **Manual duration backfill (UC-08)** — not shipped
+- **iOS** — still secondary / degraded vs Android (Focus Strict/Whitelist and background parity)
+- **Desktop** — secondary / degraded (in-app Alert tone only)
+- Local database is **not encrypted at rest**
+- **Haptic alert** — still unreliable in foreground and background
 
 ## [1.3.0] — 2026-10-07
 

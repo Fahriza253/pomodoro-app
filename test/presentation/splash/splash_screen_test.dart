@@ -39,11 +39,11 @@ void main() {
     expect(completed, isTrue);
   });
 
-  test('splash sequence duration is 800ms per design', () {
-    expect(SplashScreen.sequenceDuration, const Duration(milliseconds: 800));
+  test('splash sequence duration is 1600ms per design', () {
+    expect(SplashScreen.sequenceDuration, const Duration(milliseconds: 1600));
   });
 
-  testWidgets('motion sequence completes after 800ms', (tester) async {
+  testWidgets('motion sequence completes after 1600ms', (tester) async {
     tester.platformDispatcher.accessibilityFeaturesTestValue =
         const FakeAccessibilityFeatures();
     addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
@@ -57,7 +57,7 @@ void main() {
     await tester.pump();
     expect(completed, isFalse);
 
-    await tester.pump(const Duration(milliseconds: 799));
+    await tester.pump(const Duration(milliseconds: 1599));
     expect(completed, isFalse);
 
     await tester.pump(const Duration(milliseconds: 2));
@@ -93,7 +93,7 @@ void main() {
       expect(find.byType(SplashScreen), findsOneWidget);
       expect(find.text('START'), findsNothing);
 
-      await tester.pump(const Duration(milliseconds: 800));
+      await tester.pump(const Duration(milliseconds: 1600));
       await tester.pumpAndSettle();
 
       expect(find.byType(SplashScreen), findsNothing);

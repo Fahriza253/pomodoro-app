@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:pomodoro_app/presentation/shared/phosphor_icon_data.dart';
-import 'package:pomodoro_app/app/theme/app_theme.dart';
-import 'package:pomodoro_app/l10n/app_localizations.dart';
 import 'package:pomodoro_app/presentation/l10n/l10n_extensions.dart';
 
 /// Friendly blocking error when local database init / seed fails.
 ///
 /// Copy avoids technical jargon; retry re-attempts open + seed.
+/// Expects a parent [MaterialApp] (app shell provides theme and l10n).
 class DatabaseErrorScreen extends StatelessWidget {
   const DatabaseErrorScreen({required this.onRetry, super.key});
 
@@ -14,14 +13,7 @@ class DatabaseErrorScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      locale: const Locale('en'),
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      theme: AppThemeData.light(),
-      home: _DatabaseErrorBody(onRetry: onRetry),
-    );
+    return _DatabaseErrorBody(onRetry: onRetry);
   }
 }
 

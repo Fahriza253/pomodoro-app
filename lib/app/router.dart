@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pomodoro_app/app/app_bootstrap.dart';
+import 'package:pomodoro_app/app/providers.dart';
+import 'package:pomodoro_app/application/bootstrap/bootstrap_gate.dart';
 import 'package:pomodoro_app/presentation/settings/alert_settings_screen.dart';
+import 'package:pomodoro_app/presentation/splash/database_error_screen.dart';
+import 'package:pomodoro_app/presentation/splash/splash_screen.dart';
 import 'package:pomodoro_app/presentation/settings/appearance_settings_screen.dart';
 import 'package:pomodoro_app/presentation/settings/focus_settings_screen.dart';
 import 'package:pomodoro_app/presentation/settings/platform_settings_screen.dart';
@@ -17,17 +22,57 @@ import 'package:pomodoro_app/presentation/timer/timer_screen.dart';
 import 'package:pomodoro_app/presentation/timeline/timeline_screen.dart';
 import 'package:pomodoro_app/presentation/timeline/timeline_session_detail_screen.dart';
 
+const _bootstrapSplashPath = '/bootstrap/splash';
+const _bootstrapDbErrorPath = '/bootstrap/db-error';
+
 /// Deep link placeholder for notification tap (BR-NAV-001).
 final routerProvider = Provider<GoRouter>((ref) {
   final rootNavigatorKey = GlobalKey<NavigatorState>();
+  final refresh = ValueNotifier<int>(0);
+  ref.onDispose(refresh.dispose);
+  ref.listen(bootstrapPhaseProvider, (_, _) => refresh.value++);
+
+  String? redirect(BuildContext context, GoRouterState state) {
+    final phase = ref.read(bootstrapPhaseProvider);
+    final location = state.matchedLocation;
+
+    switch (phase) {
+      case BootstrapPhase.databaseError:
+        return location == _bootstrapDbErrorPath ? null : _bootstrapDbErrorPath;
+      case BootstrapPhase.splash:
+        return location == _bootstrapSplashPath ? null : _bootstrapSplashPath;
+      case BootstrapPhase.ready:
+        if (location.startsWith('/bootstrap')) {
+          return '/timer';
+        }
+        return null;
+    }
+  }
 
   return GoRouter(
     navigatorKey: rootNavigatorKey,
-    initialLocation: '/timer',
+    refreshListenable: refresh,
+    initialLocation: _bootstrapSplashPath,
+    redirect: redirect,
     routes: [
+      GoRoute(
+        path: _bootstrapSplashPath,
+        builder: (context, state) => SplashScreen(
+          onSequenceComplete: () => markMarketingBeatComplete(ref),
+        ),
+      ),
+      GoRoute(
+        path: _bootstrapDbErrorPath,
+        builder: (context, state) => DatabaseErrorScreen(
+          onRetry: () => ref.invalidate(appDatabaseProvider),
+        ),
+      ),
       StatefulShellRoute.indexedStack(
-        builder: (context, state, navigationShell) {
-          return HomeShell(navigationShell: navigationShell);
+        pageBuilder: (context, state, navigationShell) {
+          return NoTransitionPage<void>(
+            key: state.pageKey,
+            child: HomeShell(navigationShell: navigationShell),
+          );
         },
         branches: [
           StatefulShellBranch(
