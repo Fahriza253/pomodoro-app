@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pomodoro_app/presentation/shared/home_shell_nav.dart';
 
 /// Chrome for the main [NavigationBar]: selection is icon fill only (MASTER).
 NavigationBarThemeData homeShellNavigationBarTheme() {
@@ -9,6 +10,8 @@ NavigationBarThemeData homeShellNavigationBarTheme() {
     elevation: 0,
     shadowColor: Colors.transparent,
     surfaceTintColor: Colors.transparent,
+    // M3 stacks a 32px indicator behind a 24px glyph (4px below the icon).
+    labelPadding: EdgeInsets.only(top: kHomeShellNavIconLabelGap - 4),
   );
 }
 

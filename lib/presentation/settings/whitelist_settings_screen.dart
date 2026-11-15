@@ -8,6 +8,7 @@ import 'package:pomodoro_app/platform/focus/focus_adapter.dart';
 import 'package:pomodoro_app/presentation/l10n/l10n_extensions.dart';
 import 'package:pomodoro_app/presentation/settings/settings_error_messages.dart';
 import 'package:pomodoro_app/presentation/settings/settings_providers.dart';
+import 'package:pomodoro_app/presentation/shared/fluid_bottom_sheet.dart';
 
 class WhitelistSettingsScreen extends ConsumerStatefulWidget {
   const WhitelistSettingsScreen({super.key});
@@ -61,44 +62,24 @@ class _WhitelistSettingsScreenState
       return;
     }
 
-    final selected = await showModalBottomSheet<InstalledAppInfo>(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) {
-        return DraggableScrollableSheet(
-          expand: false,
-          initialChildSize: 0.7,
-          builder: (context, scrollController) {
-            return Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Text(
-                    context.l10n.selectApp,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ),
-                Expanded(
-                  child: ListView.builder(
-                    controller: scrollController,
-                    itemCount: apps.length,
-                    itemBuilder: (context, index) {
-                      final app = apps[index];
-                      final already = current.contains(app.packageName);
-                      return ListTile(
-                        title: Text(app.label),
-                        subtitle: Text(app.packageName),
-                        enabled: !already,
-                        onTap: already
-                            ? null
-                            : () => Navigator.of(context).pop(app),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            );
-          },
+    final selected = await showFluidBottomSheet<InstalledAppInfo>(
+      context,
+      builder: (sheetContext, close) {
+        return FluidSheetColumn(
+          title: sheetContext.l10n.selectApp,
+          child: ListView.builder(
+            itemCount: apps.length,
+            itemBuilder: (context, index) {
+              final app = apps[index];
+              final already = current.contains(app.packageName);
+              return ListTile(
+                title: Text(app.label),
+                subtitle: Text(app.packageName),
+                enabled: !already,
+                onTap: already ? null : () => close(app),
+              );
+            },
+          ),
         );
       },
     );

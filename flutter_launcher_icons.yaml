@@ -1,14 +1,23 @@
 # Generate with: dart run flutter_launcher_icons
+# Source artwork: docs/raw/app_icon-1024.png (and .svg).
+# Linux is not supported by this package; generate PNGs with ImageMagick.
 flutter_launcher_icons:
   image_path: "assets/icon/icon.png"
 
   android: "launcher_icon"
   image_path_android: "assets/icon/icon.png"
   min_sdk_android: 21
-  # Adaptive (API 26+): solid matches outer ring in assets/icon/icon.xml
-  adaptive_icon_background: "#4338CA"
+  # Adaptive (API 26+): matches the blue field in docs/raw/app_icon-1024.svg
+  adaptive_icon_background: "#2A648A"
   adaptive_icon_foreground: "assets/icon/icon.png"
-  adaptive_icon_foreground_inset: 16
+  # Artwork already has padding inside the 1024 canvas.
+  adaptive_icon_foreground_inset: 0
 
-  # Android-only for this pass; regenerate iOS separately if needed.
-  ios: false
+  ios: true
+  remove_alpha_ios: true
+  background_color_ios: "#2A648A"
+
+  windows:
+    generate: true
+    image_path: "assets/icon/icon.png"
+    icon_size: 256

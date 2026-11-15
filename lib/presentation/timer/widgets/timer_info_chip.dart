@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
 
+/// Horizontal padding inside an icon+label chip.
+const kTimerInfoChipHorizontalPadding = 10.0;
+
+/// Gap between the chip icon and its label.
+const kTimerInfoChipIconLabelGap = 10.0;
+
 class TimerInfoChip extends StatelessWidget {
   const TimerInfoChip({
     required this.icon,
@@ -38,7 +44,10 @@ class TimerInfoChip extends StatelessWidget {
     );
 
     Widget chip = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(
+        horizontal: kTimerInfoChipHorizontalPadding,
+        vertical: 6,
+      ),
       decoration: BoxDecoration(
         color: background,
         borderRadius: BorderRadius.circular(20),
@@ -47,7 +56,7 @@ class TimerInfoChip extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 16, color: iconColor),
-          const SizedBox(width: 6),
+          const SizedBox(width: kTimerInfoChipIconLabelGap),
           if (maxWidth != null) Flexible(child: labelText) else labelText,
         ],
       ),

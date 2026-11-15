@@ -11,19 +11,8 @@ const kTimerButtonRowGap = 12.0;
 
 const kTimerStagePadding = EdgeInsets.fromLTRB(24, 16, 24, 24);
 
-/// Share of leftover stage height used as margin around the middle visual.
-/// Split equally above and below the visual; the rest sits outside the cluster.
-const kTimerStageVisualMarginFraction = 0.36;
-
-const kTimerStageInnerSpacerFlex = 15;
-const kTimerStageOuterSpacerFlex = 35;
-
-double timerStageInnerSlotGap(double leftoverHeight) {
-  if (leftoverHeight <= 0) {
-    return 0;
-  }
-  return leftoverHeight * kTimerStageVisualMarginFraction / 2;
-}
+/// Minimum height for the top and bottom stage rows.
+const kTimerStageRowMinHeight = 100.0;
 
 /// Centers a single timer action button and caps width on tablet/wide layouts.
 class TimerButtonSlot extends StatelessWidget {
@@ -90,8 +79,7 @@ class TimerControlGroup extends StatelessWidget {
   }
 }
 
-/// Full-height timer stage. Leftover height is split 30/70: 30% is margin
-/// around [visual], 70% sits above [header] and below [footer].
+/// Full-height timer stage: top and bottom rows min 100 px, visual takes leftover.
 class TimerStageLayout extends StatelessWidget {
   const TimerStageLayout({
     required this.visual,
@@ -113,6 +101,8 @@ class TimerStageLayout extends StatelessWidget {
           constraints: const BoxConstraints(maxWidth: kAppContentMaxWidth),
           child: visual,
         );
+        final top = _TimerStageRow(child: header);
+        final bottom = _TimerStageRow(child: footer);
 
         if (!constraints.hasBoundedHeight) {
           return Padding(
@@ -120,9 +110,9 @@ class TimerStageLayout extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                ?header,
-                visualSlot,
-                ?footer,
+                top,
+                Align(child: visualSlot),
+                bottom,
               ],
             ),
           );
@@ -132,17 +122,30 @@ class TimerStageLayout extends StatelessWidget {
           padding: kTimerStagePadding,
           child: Column(
             children: [
-              const Spacer(flex: kTimerStageOuterSpacerFlex),
-              ?header,
-              const Spacer(flex: kTimerStageInnerSpacerFlex),
-              visualSlot,
-              const Spacer(flex: kTimerStageInnerSpacerFlex),
-              ?footer,
-              const Spacer(flex: kTimerStageOuterSpacerFlex),
+              top,
+              Expanded(child: Center(child: visualSlot)),
+              bottom,
             ],
           ),
         );
       },
+    );
+  }
+}
+
+class _TimerStageRow extends StatelessWidget {
+  const _TimerStageRow({this.child});
+
+  final Widget? child;
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(
+        minHeight: kTimerStageRowMinHeight,
+        minWidth: double.infinity,
+      ),
+      child: Center(child: child),
     );
   }
 }

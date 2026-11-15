@@ -6,14 +6,15 @@ import 'package:pomodoro_app/domain/tag/tag.dart';
 import 'package:pomodoro_app/l10n/app_localizations.dart';
 import 'package:pomodoro_app/presentation/shared/phosphor_icon_data.dart';
 import 'package:pomodoro_app/presentation/tag/tag_providers.dart';
+import 'package:pomodoro_app/presentation/shared/fluid_overscroll.dart';
 import 'package:pomodoro_app/presentation/timer/widgets/tag_picker_field.dart';
 import 'package:pomodoro_app/presentation/timer/widgets/tag_select_sheet.dart';
 
 void main() {
-  group('tagSelectPanelProgressFromDrag', () {
+  group('tagSelectPanelLinearProgressFromDrag', () {
     test('downward drag reduces progress', () {
       expect(
-        tagSelectPanelProgressFromDrag(
+        tagSelectPanelLinearProgressFromDrag(
           current: 1,
           deltaDy: 52,
           sheetHeight: 520,
@@ -22,9 +23,9 @@ void main() {
       );
     });
 
-    test('clamps to 0 and 1', () {
+    test('clamps below 0 and allows pull past fully open', () {
       expect(
-        tagSelectPanelProgressFromDrag(
+        tagSelectPanelLinearProgressFromDrag(
           current: 0.1,
           deltaDy: 400,
           sheetHeight: 200,
@@ -32,25 +33,12 @@ void main() {
         0,
       );
       expect(
-        tagSelectPanelProgressFromDrag(
+        tagSelectPanelLinearProgressFromDrag(
           current: 0.9,
           deltaDy: -400,
           sheetHeight: 200,
         ),
-        1,
-      );
-    });
-  });
-
-  group('tagSelectPanelSnapDuration', () {
-    test('scales with travel and stays in 120-240ms', () {
-      expect(
-        tagSelectPanelSnapDuration(0, 1),
-        const Duration(milliseconds: 240),
-      );
-      expect(
-        tagSelectPanelSnapDuration(0.9, 1),
-        const Duration(milliseconds: 120),
+        2.9,
       );
     });
   });
@@ -120,6 +108,25 @@ void main() {
     expect(find.text('Flexible'), findsOneWidget);
     expect(find.text('Manage tags'), findsOneWidget);
     expect(find.text('Deep Work'), findsWidgets);
+
+    final viewportH =
+        tester.view.physicalSize.height / tester.view.devicePixelRatio;
+    final panel = tester.getSize(
+      find
+          .ancestor(
+            of: find.text('Select a tag'),
+            matching: find.byType(Material),
+          )
+          .first,
+    );
+    expect(
+      panel.height,
+      closeTo(viewportH * kTagSelectSheetMinHeightFraction, 1),
+    );
+    expect(
+      panel.height,
+      lessThanOrEqualTo(viewportH * kTagSelectSheetMaxHeightFraction + 1),
+    );
 
     await tester.drag(find.text('Deep Work').last, const Offset(-120, 0));
     await tester.pumpAndSettle();

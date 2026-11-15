@@ -2,7 +2,7 @@
 <!--
   Status-bar / notification small icon (white + alpha only).
   Android tints this; full-color mipmaps render as a blank/placeholder blob.
-  Motif matches assets/icon/icon.xml (ring + clock hands).
+  Launcher artwork is docs/raw/app_icon-1024.png.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
   android:width="24dp"

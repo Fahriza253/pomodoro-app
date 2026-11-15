@@ -5,6 +5,7 @@ import 'package:pomodoro_app/domain/settings/app_settings.dart';
 import 'package:pomodoro_app/presentation/l10n/l10n_extensions.dart';
 import 'package:pomodoro_app/presentation/settings/settings_error_messages.dart';
 import 'package:pomodoro_app/presentation/settings/settings_providers.dart';
+import 'package:pomodoro_app/presentation/shared/fluid_bottom_sheet.dart';
 
 /// Pomodoro start options (timer screen sheet).
 class TimerStartSettingsSection extends ConsumerStatefulWidget {
@@ -66,16 +67,14 @@ class _TimerStartSettingsSectionState
           onChanged: _saving
               ? null
               : (checked) => _save(
-                    AppSettingsPatch(
-                      pomodoroPreStartCountdown: checked ?? false,
-                    ),
-                  ),
+                  AppSettingsPatch(pomodoroPreStartCountdown: checked ?? false),
+                ),
           title: Text(l10n.timerPreStartCountdownTitle),
           subtitle: Text(
             l10n.timerPreStartCountdownSubtitle,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
           controlAffinity: ListTileControlAffinity.leading,
         );
@@ -85,29 +84,12 @@ class _TimerStartSettingsSectionState
 }
 
 Future<void> showTimerStartSettingsSheet(BuildContext context) {
-  final l10n = context.l10n;
-  return showModalBottomSheet<void>(
-    context: context,
-    showDragHandle: true,
-    builder: (sheetContext) {
-      return SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.only(bottom: 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                child: Text(
-                  l10n.timerStartSettingsSheetTitle,
-                  style: Theme.of(sheetContext).textTheme.titleMedium,
-                ),
-              ),
-              const TimerStartSettingsSection(),
-            ],
-          ),
-        ),
+  return showFluidBottomSheet<void>(
+    context,
+    builder: (sheetContext, _) {
+      return FluidSheetColumn(
+        title: sheetContext.l10n.timerStartSettingsSheetTitle,
+        child: const SingleChildScrollView(child: TimerStartSettingsSection()),
       );
     },
   );

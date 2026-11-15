@@ -3,10 +3,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pomodoro_app/presentation/timer/widgets/tag_swipe_actions.dart';
 
 void main() {
-  group('clampTagSwipeExtent', () {
+  group('tagSwipeLinearExtent', () {
     test('opens on left drag in LTR', () {
       expect(
-        clampTagSwipeExtent(
+        tagSwipeLinearExtent(
           current: 0,
           deltaDx: -40,
           maxExtent: 112,
@@ -18,7 +18,7 @@ void main() {
 
     test('ignores right drag past zero in LTR', () {
       expect(
-        clampTagSwipeExtent(
+        tagSwipeLinearExtent(
           current: 10,
           deltaDx: 40,
           maxExtent: 112,
@@ -30,7 +30,7 @@ void main() {
 
     test('opens on right drag in RTL', () {
       expect(
-        clampTagSwipeExtent(
+        tagSwipeLinearExtent(
           current: 0,
           deltaDx: 40,
           maxExtent: 112,
@@ -38,6 +38,26 @@ void main() {
         ),
         40,
       );
+    });
+
+    test('allows pull past fully open', () {
+      expect(
+        tagSwipeLinearExtent(
+          current: 112,
+          deltaDx: -40,
+          maxExtent: 112,
+          isRtl: false,
+        ),
+        152,
+      );
+    });
+  });
+
+  group('tagSwipeVisualExtent', () {
+    test('rubber-bands past max', () {
+      expect(tagSwipeVisualExtent(112, 112), 112);
+      expect(tagSwipeVisualExtent(224, 112), greaterThan(112));
+      expect(tagSwipeVisualExtent(224, 112), lessThan(224));
     });
   });
 
@@ -58,11 +78,8 @@ void main() {
             actionsWidth: 112,
             isOpen: false,
             onOpenChanged: (open) => opened = open,
-            actions: const SizedBox(
-              width: 112,
-              height: 56,
-              child: Text('ACTIONS'),
-            ),
+            actions: (_, _) =>
+                const SizedBox(width: 112, height: 56, child: Text('ACTIONS')),
             child: const SizedBox(
               width: 300,
               height: 56,

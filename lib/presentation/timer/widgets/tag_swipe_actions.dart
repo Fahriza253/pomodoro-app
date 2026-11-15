@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/physics.dart';
 import 'package:flutter/services.dart';
+import 'package:pomodoro_app/presentation/shared/fluid_overscroll.dart';
 
 /// Fraction of [maxExtent] at which a swipe snaps open on release.
 @visibleForTesting
 const kTagSwipeOpenFraction = 0.4;
 
-/// Maps a horizontal drag into a 0…[maxExtent] reveal (opens toward the start edge).
+/// Maps a horizontal drag into a linear reveal that may exceed [maxExtent].
 @visibleForTesting
-double clampTagSwipeExtent({
+double tagSwipeLinearExtent({
   required double current,
   required double deltaDx,
   required double maxExtent,
@@ -17,7 +19,13 @@ double clampTagSwipeExtent({
     return 0;
   }
   final openDelta = isRtl ? deltaDx : -deltaDx;
-  return (current + openDelta).clamp(0.0, maxExtent);
+  final next = current + openDelta;
+  return next < 0 ? 0.0 : next;
+}
+
+@visibleForTesting
+double tagSwipeVisualExtent(double linear, double maxExtent) {
+  return fluidVisualOverscroll(linear, min: 0, max: maxExtent);
 }
 
 @visibleForTesting
@@ -28,8 +36,13 @@ bool tagSwipeShouldSnapOpen(double extent, double maxExtent) {
   return extent >= maxExtent * kTagSwipeOpenFraction;
 }
 
-/// Foreground slide that reveals trailing actions. Pointer owns the extent;
-/// snap uses cubic easing (no spring).
+typedef TagSwipeActionsBuilder =
+    Widget Function(BuildContext context, double revealT);
+
+/// Foreground slide that reveals trailing actions. Pointer owns the linear
+/// extent, including pull past fully open. Settle uses a critically damped
+/// spring. [actions] receives reveal 0…1 (full size at rest open; overshoot
+/// does not grow chrome past 1).
 class TagSwipeActions extends StatefulWidget {
   const TagSwipeActions({
     required this.actionsWidth,
@@ -42,7 +55,7 @@ class TagSwipeActions extends StatefulWidget {
   });
 
   final double actionsWidth;
-  final Widget actions;
+  final TagSwipeActionsBuilder actions;
   final Widget child;
   final bool isOpen;
   final ValueChanged<bool> onOpenChanged;
@@ -55,33 +68,23 @@ class TagSwipeActions extends StatefulWidget {
 class _TagSwipeActionsState extends State<TagSwipeActions>
     with SingleTickerProviderStateMixin {
   late final AnimationController _snapController;
-  Animation<double>? _snapAnimation;
   double _extent = 0;
+  double _velocity = 0;
   bool _armedHaptic = false;
 
   @override
   void initState() {
     super.initState();
     _extent = widget.isOpen ? widget.actionsWidth : 0;
-    _snapController =
-        AnimationController(
-          vsync: this,
-          duration: const Duration(milliseconds: 220),
-        )..addListener(() {
-          final anim = _snapAnimation;
-          if (anim == null) {
-            return;
-          }
-          setState(() => _extent = anim.value);
-        });
+    _snapController = AnimationController.unbounded(vsync: this)
+      ..addListener(() {
+        setState(() => _extent = _snapController.value);
+      });
   }
 
   @override
   void didUpdateWidget(TagSwipeActions oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.actionsWidth != oldWidget.actionsWidth) {
-      _extent = _extent.clamp(0.0, widget.actionsWidth);
-    }
     if (!widget.isOpen && oldWidget.isOpen) {
       _snapTo(0);
     }
@@ -102,7 +105,7 @@ class _TagSwipeActionsState extends State<TagSwipeActions>
     _snapController.stop();
     final isRtl = Directionality.of(context) == TextDirection.rtl;
     setState(() {
-      _extent = clampTagSwipeExtent(
+      _extent = tagSwipeLinearExtent(
         current: _extent,
         deltaDx: details.delta.dx,
         maxExtent: widget.actionsWidth,
@@ -119,6 +122,9 @@ class _TagSwipeActionsState extends State<TagSwipeActions>
   }
 
   void _onDragEnd(DragEndDetails details) {
+    final isRtl = Directionality.of(context) == TextDirection.rtl;
+    final vx = details.velocity.pixelsPerSecond.dx;
+    _velocity = isRtl ? vx : -vx;
     final open = tagSwipeShouldSnapOpen(_extent, widget.actionsWidth);
     widget.onOpenChanged(open);
     _snapTo(open ? widget.actionsWidth : 0);
@@ -126,38 +132,45 @@ class _TagSwipeActionsState extends State<TagSwipeActions>
 
   void _onDragCancel() {
     widget.onOpenChanged(false);
+    _velocity = 0;
     _snapTo(0);
   }
 
   void _snapTo(double target) {
     final reduced = MediaQuery.disableAnimationsOf(context);
+    _snapController.stop();
     if (reduced) {
-      _snapController.stop();
       setState(() => _extent = target);
+      _velocity = 0;
       return;
     }
-    _snapAnimation = Tween<double>(begin: _extent, end: target).animate(
-      CurvedAnimation(parent: _snapController, curve: Curves.easeOutCubic),
+    final simulation = SpringSimulation(
+      kFluidSettleSpring,
+      _extent,
+      target,
+      _velocity,
     );
-    _snapController
-      ..reset()
-      ..forward();
+    _velocity = 0;
+    _snapController.animateWith(simulation);
   }
 
   @override
   Widget build(BuildContext context) {
     final isRtl = Directionality.of(context) == TextDirection.rtl;
-    final dx = isRtl ? _extent : -_extent;
+    final maxExtent = widget.actionsWidth;
+    final visual = tagSwipeVisualExtent(_extent, maxExtent);
+    final revealT = maxExtent <= 0 ? 0.0 : (visual / maxExtent).clamp(0.0, 1.0);
+    final dx = isRtl ? visual : -visual;
 
     return ClipRect(
       child: Stack(
         alignment: AlignmentDirectional.centerEnd,
         children: [
           IgnorePointer(
-            ignoring: _extent < 8,
+            ignoring: visual < 8,
             child: ExcludeSemantics(
-              excluding: _extent < widget.actionsWidth * kTagSwipeOpenFraction,
-              child: widget.actions,
+              excluding: _extent < maxExtent * kTagSwipeOpenFraction,
+              child: widget.actions(context, revealT),
             ),
           ),
           GestureDetector(

@@ -24,20 +24,20 @@ abstract final class HomeShellPhosphorIcons {
   static IconData timer({required bool selected}) =>
       selected ? _timerFill : _timerRegular;
 
-  static const _clockRegular = IconData(
-    0xe19a,
+  static const _clockCounterClockwiseRegular = IconData(
+    0xe1a0,
     fontFamily: _regular,
     fontPackage: _pkg,
     matchTextDirection: true,
   );
-  static const _clockFill = IconData(
-    0xe19a,
+  static const _clockCounterClockwiseFill = IconData(
+    0xe1a0,
     fontFamily: _fill,
     fontPackage: _pkg,
     matchTextDirection: true,
   );
-  static IconData clock({required bool selected}) =>
-      selected ? _clockFill : _clockRegular;
+  static IconData clockCounterClockwise({required bool selected}) =>
+      selected ? _clockCounterClockwiseFill : _clockCounterClockwiseRegular;
 
   static const _chartBarRegular = IconData(
     0xe150,
@@ -130,14 +130,14 @@ abstract final class PresentationPhosphorIcons {
     fontPackage: _pkg,
     matchTextDirection: true,
   );
-  static const hourglass = IconData(
-    0xe2b2,
+  static const fadersHorizontal = IconData(
+    0xe22a,
     fontFamily: _regular,
     fontPackage: _pkg,
     matchTextDirection: true,
   );
-  static const timer = IconData(
-    0xe492,
+  static const hourglass = IconData(
+    0xe2b2,
     fontFamily: _regular,
     fontPackage: _pkg,
     matchTextDirection: true,

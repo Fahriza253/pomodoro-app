@@ -45,6 +45,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(TagPickerField), findsOneWidget);
+    expect(find.byIcon(PresentationPhosphorIcons.fadersHorizontal), findsOneWidget);
     expect(find.text('START'), findsOneWidget);
     expect(find.textContaining('General'), findsOneWidget);
     expect(find.text('Flexible'), findsNothing);

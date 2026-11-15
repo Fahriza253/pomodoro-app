@@ -5,13 +5,11 @@ import 'package:pomodoro_app/domain/settings/app_settings.dart';
 import 'package:pomodoro_app/presentation/l10n/l10n_extensions.dart';
 import 'package:pomodoro_app/presentation/settings/settings_error_messages.dart';
 import 'package:pomodoro_app/presentation/settings/settings_providers.dart';
+import 'package:pomodoro_app/presentation/shared/fluid_bottom_sheet.dart';
 
 /// Shared Alert Controls toggles (Settings + timer sheet). BR-SETTINGS-007.
 class AlertControlsSection extends ConsumerStatefulWidget {
-  const AlertControlsSection({
-    this.dense = false,
-    super.key,
-  });
+  const AlertControlsSection({this.dense = false, super.key});
 
   final bool dense;
 
@@ -43,8 +41,7 @@ class _AlertControlsSectionState extends ConsumerState<AlertControlsSection> {
   @override
   Widget build(BuildContext context) {
     final settingsAsync = ref.watch(appSettingsStreamProvider);
-    final flashCapable =
-        ref.watch(flashCapabilitiesProvider).supported;
+    final flashCapable = ref.watch(flashCapabilitiesProvider).supported;
     final l10n = context.l10n;
 
     return settingsAsync.when(
@@ -122,28 +119,13 @@ class _AlertControlsSectionState extends ConsumerState<AlertControlsSection> {
 }
 
 Future<void> showAlertControlsSheet(BuildContext context) {
-  final l10n = context.l10n;
-  return showModalBottomSheet<void>(
-    context: context,
-    showDragHandle: true,
-    builder: (sheetContext) {
-      return SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.only(bottom: 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                child: Text(
-                  l10n.alertControlsSheetTitle,
-                  style: Theme.of(sheetContext).textTheme.titleMedium,
-                ),
-              ),
-              const AlertControlsSection(dense: true),
-            ],
-          ),
+  return showFluidBottomSheet<void>(
+    context,
+    builder: (sheetContext, _) {
+      return FluidSheetColumn(
+        title: sheetContext.l10n.alertControlsSheetTitle,
+        child: const SingleChildScrollView(
+          child: AlertControlsSection(dense: true),
         ),
       );
     },

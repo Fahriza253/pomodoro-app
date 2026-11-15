@@ -115,7 +115,7 @@ class _TimerScreenState extends ConsumerState<TimerScreen> {
             if (!inActiveRun)
               IconButton(
                 tooltip: l10n.timerStartSettingsSheetTitle,
-                icon: const Icon(PresentationPhosphorIcons.timer),
+                icon: const Icon(PresentationPhosphorIcons.fadersHorizontal),
                 onPressed: () => showTimerStartSettingsSheet(context),
               ),
             if (phase == EnginePhase.running)
