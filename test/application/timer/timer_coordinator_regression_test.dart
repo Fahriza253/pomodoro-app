@@ -38,7 +38,10 @@ void main() {
 
       test('Pomodoro pre-start countdown is visible before session create', () {
         fakeAsync((async) {
-          final begin = coordinator.beginPomodoroStart(stack.tagId);
+          final begin = coordinator.beginPomodoroStart(
+            stack.tagId,
+            preStartCountdown: true,
+          );
           expect(begin.isOk, isTrue);
           expect(harness.view().preStartCountdown, 3);
           expect(harness.view().phase, EnginePhase.idle);
@@ -296,6 +299,31 @@ void main() {
           SessionStatus.abandoned,
         );
       });
+
+      test(
+        'resumeFromPersisted then tick crosses segment boundary',
+        () async {
+          await harness.configureShortPomodoroTag(focusDurationSec: 30);
+          await coordinator.startPomodoro(stack.tagId);
+          final persisted = await stack.activeState.get();
+
+          final fresh = harness.recreateStack();
+          addTearDown(fresh.dispose);
+          stack.dispose();
+
+          final freshHarness = TimerCoordinatorRegressionHarness(fresh);
+          freshHarness.offerRecovery(persisted!);
+          fresh.clock.advanceSeconds(35);
+
+          final resume = await fresh.coordinator.resumeFromPersisted();
+          expect(resume.isOk, isTrue);
+          expect(freshHarness.view().phase, EnginePhase.segmentComplete);
+
+          await fresh.coordinator.tick();
+          expect(freshHarness.view().phase, EnginePhase.segmentComplete);
+          expect(freshHarness.view().hasSegmentEndSummary, isTrue);
+        },
+      );
 
       test(
         'foreground lifecycle catches up overdue Pomodoro segment end',

@@ -2,30 +2,26 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pomodoro_app/app/theme/segment_semantic_color.dart';
 import 'package:pomodoro_app/app/timer_providers.dart';
-import 'package:pomodoro_app/application/timer/notification_strings.dart';
-import 'package:pomodoro_app/application/timer/segment_end_copy.dart';
 import 'package:pomodoro_app/application/timer/timer_flow_state.dart';
 import 'package:pomodoro_app/application/timer/timer_view_state.dart';
 import 'package:pomodoro_app/domain/common/enums.dart';
 import 'package:pomodoro_app/presentation/l10n/l10n_extensions.dart';
 import 'package:pomodoro_app/presentation/settings/alert_controls_section.dart';
 import 'package:pomodoro_app/presentation/settings/settings_providers.dart';
-import 'package:pomodoro_app/presentation/shared/app_layout.dart';
 import 'package:pomodoro_app/presentation/shared/phosphor_icon_data.dart';
-import 'package:pomodoro_app/presentation/timer/segment_labels.dart';
-import 'package:pomodoro_app/presentation/timer/soft_complete_presentation_intent.dart';
 import 'package:pomodoro_app/presentation/timer/timer_actions.dart';
-import 'package:pomodoro_app/presentation/timer/timer_format.dart';
-import 'package:pomodoro_app/presentation/timer/timer_layout.dart';
 import 'package:pomodoro_app/presentation/timer/timer_providers.dart';
 import 'package:pomodoro_app/presentation/timer/timer_ui_state.dart';
 import 'package:pomodoro_app/presentation/timer/widgets/recovery_dialog.dart';
-import 'package:pomodoro_app/presentation/timer/widgets/slide_to_stop.dart';
-import 'package:pomodoro_app/presentation/timer/widgets/tag_picker_field.dart';
-import 'package:pomodoro_app/presentation/timer/widgets/session_complete_lottie.dart';
-import 'package:pomodoro_app/presentation/timer/widgets/timer_display_ring.dart';
+import 'package:pomodoro_app/presentation/timer/widgets/timer_active_body.dart';
+import 'package:pomodoro_app/presentation/timer/widgets/timer_idle_body.dart';
+import 'package:pomodoro_app/presentation/timer/widgets/timer_pre_start_body.dart';
+import 'package:pomodoro_app/presentation/timer/widgets/timer_recovery_placeholder.dart';
+import 'package:pomodoro_app/presentation/timer/widgets/timer_segment_complete_body.dart';
+import 'package:pomodoro_app/presentation/timer/widgets/timer_session_complete_body.dart';
+import 'package:pomodoro_app/presentation/timer/widgets/timer_stage_switcher.dart';
+import 'package:pomodoro_app/presentation/timer/widgets/timer_start_settings_section.dart';
 
 class TimerScreen extends ConsumerStatefulWidget {
   const TimerScreen({this.deepLinkSessionId, super.key});
@@ -61,7 +57,6 @@ class _TimerScreenState extends ConsumerState<TimerScreen> {
   @override
   Widget build(BuildContext context) {
     ref.watch(timerDefaultTagProvider);
-    // Flow chrome skips active display ticks; legacy chrome for active phase UI.
     final flowChromeAsync = ref.watch(timerFlowChromeProvider);
     final chromeAsync = ref.watch(timerChromeProvider);
     final ui = ref.watch(timerUiProvider);
@@ -92,6 +87,8 @@ class _TimerScreenState extends ConsumerState<TimerScreen> {
     final softComplete = phase == EnginePhase.sessionComplete;
     final flowChrome = flowChromeAsync.valueOrNull;
     final inPreStart = flowChrome is TimerPomodoroPreStartFlow;
+    final inActiveRun =
+        phase == EnginePhase.running || phase == EnginePhase.paused;
     return PopScope(
       canPop: !softComplete && !inPreStart,
       onPopInvokedWithResult: (didPop, _) async {
@@ -99,7 +96,6 @@ class _TimerScreenState extends ConsumerState<TimerScreen> {
           return;
         }
         if (softComplete) {
-          // Leaving soft session-complete without LANJUTKAN = Done.
           await runTimerAction(
             context,
             ref,
@@ -116,7 +112,13 @@ class _TimerScreenState extends ConsumerState<TimerScreen> {
         appBar: AppBar(
           title: Text(l10n.timerTitle),
           actions: [
-            if (chromeAsync.valueOrNull?.phase == EnginePhase.running)
+            if (!inActiveRun)
+              IconButton(
+                tooltip: l10n.timerStartSettingsSheetTitle,
+                icon: const Icon(PresentationPhosphorIcons.timer),
+                onPressed: () => showTimerStartSettingsSheet(context),
+              ),
+            if (phase == EnginePhase.running)
               IconButton(
                 tooltip: l10n.alertControlsSheetTitle,
                 icon: const Icon(PresentationPhosphorIcons.bellRinging),
@@ -133,14 +135,10 @@ class _TimerScreenState extends ConsumerState<TimerScreen> {
               return const Center(child: CircularProgressIndicator());
             }
             final body = _buildTimerBody(flow, view, ui);
-            return AnimatedSwitcher(
-              duration: const Duration(milliseconds: 220),
-              switchInCurve: Curves.easeOut,
-              switchOutCurve: Curves.easeIn,
-              child: KeyedSubtree(
-                key: ValueKey(_timerBodyKey(flow, view)),
-                child: body,
-              ),
+            final bodyKey = _timerBodyKey(flow, view);
+            return TimerStageSwitcher(
+              stageKey: bodyKey,
+              child: body,
             );
           },
         ),
@@ -149,12 +147,15 @@ class _TimerScreenState extends ConsumerState<TimerScreen> {
   }
 
   String _timerBodyKey(TimerFlowState flow, TimerViewState view) {
+    if (flow is TimerPomodoroPreStartFlow) {
+      return 'pomodoro-prestart';
+    }
     return switch (flow) {
-      TimerPomodoroPreStartFlow() => 'prestart',
       TimerIdleSetupFlow() => 'idle',
       TimerRecoveryOfferFlow() => 'recovery',
       _ => switch (view.phase) {
-        EnginePhase.running || EnginePhase.paused => 'active',
+        EnginePhase.running || EnginePhase.paused =>
+          view.mode == TimerMode.pomodoro ? 'pomodoro-run' : 'flex-active',
         _ => view.phase.name,
       },
     };
@@ -166,22 +167,27 @@ class _TimerScreenState extends ConsumerState<TimerScreen> {
     TimerUiState ui,
   ) {
     return switch (flow) {
-      TimerIdleSetupFlow(:final actions) => _IdleBody(
+      TimerIdleSetupFlow(:final actions) => TimerIdleBody(
         canStartSession: actions.canStartSession,
         onStart: _onStartPressed,
       ),
-      TimerPomodoroPreStartFlow(:final countdownSeconds, :final actions) =>
-        _PreStartBody(
+      TimerPomodoroPreStartFlow(
+        :final tagId,
+        :final countdownSeconds,
+        :final actions,
+      ) =>
+        TimerPreStartBody(
+          tagId: tagId,
           countdown: countdownSeconds,
           onSkip: actions.canSkip ? _skipPreStart : null,
         ),
-      TimerRecoveryOfferFlow() => const _RecoveryOfferPlaceholder(),
+      TimerRecoveryOfferFlow() => const TimerRecoveryOfferPlaceholder(),
       _ => switch (view.phase) {
-        EnginePhase.running => _ActiveBody(view: view, isPaused: false),
-        EnginePhase.paused => _ActiveBody(view: view, isPaused: true),
-        EnginePhase.segmentComplete => _SegmentCompleteBody(view: view),
-        EnginePhase.sessionComplete => _SessionCompleteBody(view: view),
-        EnginePhase.idle => const _RecoveryOfferPlaceholder(),
+        EnginePhase.running => TimerActiveBody(view: view, isPaused: false),
+        EnginePhase.paused => TimerActiveBody(view: view, isPaused: true),
+        EnginePhase.segmentComplete => TimerSegmentCompleteBody(view: view),
+        EnginePhase.sessionComplete => TimerSessionCompleteBody(view: view),
+        EnginePhase.idle => const TimerRecoveryOfferPlaceholder(),
       },
     };
   }
@@ -206,11 +212,18 @@ class _TimerScreenState extends ConsumerState<TimerScreen> {
       return;
     }
     if (ui.selectedMode == TimerMode.pomodoro) {
+      final preStart = ref
+              .read(appSettingsStreamProvider)
+              .valueOrNull
+              ?.pomodoroPreStartCountdown ??
+          false;
       await runTimerAction(
         context,
         ref,
-        () async =>
-            ref.read(timerCoordinatorProvider).beginPomodoroStart(tagId),
+        () async => ref.read(timerCoordinatorProvider).beginPomodoroStart(
+              tagId,
+              preStartCountdown: preStart,
+            ),
       );
       return;
     }
@@ -273,612 +286,6 @@ class _TimerScreenState extends ConsumerState<TimerScreen> {
         );
         _recoveryDialogShown = false;
       },
-    );
-  }
-}
-
-/// Recovery is a modal flow — keep idle setup chrome off the stack underneath.
-class _RecoveryOfferPlaceholder extends StatelessWidget {
-  const _RecoveryOfferPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return const SizedBox.shrink();
-  }
-}
-
-class _IdleBody extends ConsumerWidget {
-  const _IdleBody({required this.canStartSession, required this.onStart});
-
-  final bool canStartSession;
-  final VoidCallback onStart;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = context.l10n;
-    final ui = ref.watch(timerUiProvider);
-    final configAsync = ref.watch(selectedTagConfigProvider);
-
-    final previewSec = configAsync.valueOrNull?.focusDurationSec ?? 1500;
-    final reminderEnabled = configAsync.valueOrNull?.reminderEnabled ?? false;
-    final reminderMin = configAsync.valueOrNull?.reminderIntervalMin;
-
-    return TimerStageLayout(
-      header: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Align(
-            alignment: Alignment.center,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: kAppContentMaxWidth),
-              child: const SizedBox(
-                width: double.infinity,
-                child: TagPickerField(enabled: true),
-              ),
-            ),
-          ),
-        ],
-      ),
-      visual: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            formatTimerSeconds(
-              ui.selectedMode == TimerMode.pomodoro ? previewSec : 0,
-            ),
-            style: Theme.of(context).textTheme.displaySmall,
-          ),
-          if (ui.selectedMode == TimerMode.flexible && reminderEnabled) ...[
-            const SizedBox(height: 8),
-            Text(
-              l10n.flexibleReminderEveryMinutes(reminderMin ?? 25),
-              style: Theme.of(context).textTheme.bodyMedium,
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ],
-      ),
-      footer: TimerButtonSlot(
-        child: FilledButton(
-          onPressed: canStartSession && ui.selectedTagId != null
-              ? onStart
-              : null,
-          style: FilledButton.styleFrom(
-            minimumSize: const Size(double.infinity, 52),
-            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
-          ),
-          child: Text(l10n.start.toUpperCase()),
-        ),
-      ),
-    );
-  }
-}
-
-class _PreStartBody extends StatelessWidget {
-  const _PreStartBody({required this.countdown, this.onSkip});
-
-  final int countdown;
-  final VoidCallback? onSkip;
-
-  bool get _isLaunching => countdown <= 0;
-
-  @override
-  Widget build(BuildContext context) {
-    return TimerStageLayout(
-      visual: Text(
-        _isLaunching ? '…' : '$countdown',
-        style: Theme.of(context).textTheme.displayLarge?.copyWith(
-          fontWeight: FontWeight.w600,
-          fontFeatures: const [FontFeature.tabularFigures()],
-        ),
-        textAlign: TextAlign.center,
-      ),
-      footer: _isLaunching || onSkip == null
-          ? null
-          : TimerButtonSlot(
-              child: TextButton(
-                onPressed: onSkip,
-                child: Text(context.l10n.skip),
-              ),
-            ),
-    );
-  }
-}
-
-class _ActiveBody extends ConsumerWidget {
-  const _ActiveBody({required this.view, required this.isPaused});
-
-  final TimerViewState view;
-  final bool isPaused;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = context.l10n;
-    final isRest = isRestSegment(view.currentSegmentType);
-    return TimerStageLayout(
-      header: _ActiveSessionChips(
-        tagName: view.tagName,
-        segmentType: view.currentSegmentType ?? SegmentType.focus,
-        segmentLabel: segmentTypeLabel(l10n, view.currentSegmentType),
-        sessionProgress: _sessionProgressLabel(view),
-      ),
-      visual: const _LiveTimerDisplayRing(),
-      footer: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TimerControlGroup(
-            children: [
-              SizedBox(
-                width: 56,
-                height: 56,
-                child: OutlinedButton(
-                  onPressed: isPaused
-                      ? () => runTimerAction(
-                          context,
-                          ref,
-                          () => ref.read(timerCoordinatorProvider).resume(),
-                        )
-                      : () => runTimerAction(
-                          context,
-                          ref,
-                          () => ref.read(timerCoordinatorProvider).pause(),
-                        ),
-                  style: OutlinedButton.styleFrom(
-                    shape: const CircleBorder(),
-                    padding: EdgeInsets.zero,
-                    minimumSize: const Size.square(56),
-                    maximumSize: const Size.square(56),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  child: Semantics(
-                    button: true,
-                    label: isPaused ? l10n.resume : l10n.pause,
-                    child: ExcludeSemantics(
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 220),
-                        switchInCurve: Curves.easeOutCubic,
-                        switchOutCurve: Curves.easeInCubic,
-                        transitionBuilder: (child, animation) {
-                          return FadeTransition(
-                            opacity: animation,
-                            child: ScaleTransition(
-                              scale: Tween<double>(
-                                begin: 0.92,
-                                end: 1,
-                              ).animate(animation),
-                              child: child,
-                            ),
-                          );
-                        },
-                        child: Icon(
-                          isPaused
-                              ? PresentationPhosphorIcons.play()
-                              : PresentationPhosphorIcons.pause(filled: true),
-                          key: ValueKey(isPaused ? 'resume' : 'pause'),
-                          size: 28,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const _LiveSlideToStop(),
-            ],
-          ),
-          if (isRest && !isPaused) ...[
-            const SizedBox(height: 12),
-            TimerButtonSlot(
-              child: TextButton(
-                onPressed: () => runTimerAction(
-                  context,
-                  ref,
-                  () => ref.read(timerCoordinatorProvider).skipBreak(),
-                ),
-                child: Text(l10n.skipBreakUpper),
-              ),
-            ),
-          ],
-          if (view.mode == TimerMode.flexible) ...[
-            const SizedBox(height: 12),
-            TimerButtonSlot(
-              child: FilledButton(
-                onPressed: () => runTimerAction(
-                  context,
-                  ref,
-                  () => ref.read(timerCoordinatorProvider).completeFlexible(),
-                ),
-                child: Text(l10n.finish.toUpperCase()),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  /// Focus-in-cycle progress, e.g. `1/4` while the first focus is running.
-  String? _sessionProgressLabel(TimerViewState view) {
-    if (view.mode != TimerMode.pomodoro || view.totalFocusInCycle <= 0) {
-      return null;
-    }
-    final current = view.currentSegmentType == SegmentType.focus
-        ? view.completedFocusCount + 1
-        : view.completedFocusCount.clamp(1, view.totalFocusInCycle);
-    return '$current/${view.totalFocusInCycle}';
-  }
-}
-
-/// Per-second display only — keeps [_ActiveBody] chrome off the tick path.
-class _LiveTimerDisplayRing extends ConsumerWidget {
-  const _LiveTimerDisplayRing();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final view = ref.watch(timerViewStateProvider).valueOrNull;
-    if (view == null) {
-      return const SizedBox(width: 220, height: 220);
-    }
-    return TimerDisplayRing(
-      displaySec: view.displaySec,
-      isCountdown: view.isCountdown,
-      plannedSec: view.currentPlannedSec,
-      segmentType: view.currentSegmentType ?? SegmentType.focus,
-    );
-  }
-}
-
-class _LiveSlideToStop extends ConsumerWidget {
-  const _LiveSlideToStop();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final view = ref.watch(timerViewStateProvider).valueOrNull;
-    final l10n = context.l10n;
-    final grace = view?.earlyStopGraceRemainingSec ?? 0;
-    return SlideToStop(
-      idleLabel: grace > 0
-          ? l10n.stopWithGraceSeconds(grace).toUpperCase()
-          : l10n.stop.toUpperCase(),
-      onStop: () => stopSession(context, ref),
-    );
-  }
-}
-
-class _ActiveSessionChips extends StatelessWidget {
-  const _ActiveSessionChips({
-    required this.tagName,
-    required this.segmentType,
-    required this.segmentLabel,
-    required this.sessionProgress,
-  });
-
-  /// Spec: Tag chip max width as a fraction of available header width.
-  static const double _tagMaxWidthFraction = 0.4;
-
-  final String? tagName;
-  final SegmentType segmentType;
-  final String segmentLabel;
-  final String? sessionProgress;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final segmentEmphasis = segmentSemanticEmphasis(scheme, segmentType);
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final tagMaxWidth = constraints.maxWidth * _tagMaxWidthFraction;
-        final chips = <Widget>[
-          if (tagName != null && tagName!.isNotEmpty)
-            _TimerInfoChip(
-              icon: PresentationPhosphorIcons.tag,
-              label: tagName!,
-              iconColor: scheme.onSurfaceVariant,
-              background: scheme.surfaceContainerHighest,
-              foreground: scheme.onSurface,
-              emphasized: true,
-              maxWidth: tagMaxWidth,
-            ),
-          if (segmentLabel.isNotEmpty)
-            _TimerInfoChip(
-              icon: PresentationPhosphorIcons.hourglass,
-              label: segmentLabel,
-              iconColor: segmentEmphasis.accent,
-              background: segmentEmphasis.background,
-              foreground: segmentEmphasis.foreground,
-            ),
-          if (sessionProgress != null)
-            _TimerInfoChip(
-              icon: PresentationPhosphorIcons.repeat,
-              label: sessionProgress!,
-              iconColor: scheme.tertiary,
-              background: scheme.surfaceContainerHighest,
-              foreground: scheme.onSurfaceVariant,
-            ),
-        ];
-
-        if (chips.isEmpty) {
-          return const SizedBox.shrink();
-        }
-
-        return Align(
-          alignment: Alignment.center,
-          child: Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            alignment: WrapAlignment.center,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: chips,
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _TimerInfoChip extends StatelessWidget {
-  const _TimerInfoChip({
-    required this.icon,
-    required this.label,
-    required this.iconColor,
-    required this.background,
-    required this.foreground,
-    this.emphasized = false,
-    this.maxWidth,
-  });
-
-  final IconData icon;
-  final String label;
-  final Color iconColor;
-  final Color background;
-  final Color foreground;
-
-  /// Soft emphasis: heavier weight only — same icon/font size as other chips.
-  final bool emphasized;
-  final double? maxWidth;
-
-  @override
-  Widget build(BuildContext context) {
-    final textStyle = Theme.of(context).textTheme.labelMedium?.copyWith(
-      color: foreground,
-      fontWeight: emphasized ? FontWeight.w600 : FontWeight.w500,
-    );
-
-    final labelText = Text(
-      label,
-      style: textStyle,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      softWrap: false,
-    );
-
-    Widget chip = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: iconColor),
-          const SizedBox(width: 6),
-          if (maxWidth != null) Flexible(child: labelText) else labelText,
-        ],
-      ),
-    );
-
-    if (maxWidth != null) {
-      chip = ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: maxWidth!),
-        child: chip,
-      );
-    }
-
-    return chip;
-  }
-}
-
-class _SegmentCompleteBody extends ConsumerWidget {
-  const _SegmentCompleteBody({required this.view});
-
-  final TimerViewState view;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = context.l10n;
-    final language = ref
-        .watch(appSettingsStreamProvider)
-        .maybeWhen(data: (s) => s.language, orElse: () => 'en');
-    final endCopy = view.hasSegmentEndSummary
-        ? SegmentEndCopy.build(
-            strings: NotificationStrings.forLanguage(language),
-            finished: view.segmentEndFinishedType!,
-            next: view.segmentEndNextType,
-            completedCount: view.segmentEndCompletedCount!,
-            totalCount: view.segmentEndTotalCount!,
-          )
-        : null;
-    final nextIsRest = view.currentSegmentType == SegmentType.focus;
-    final title =
-        endCopy?.title ??
-        (nextIsRest ? l10n.focusCompleteTitle : l10n.breakCompleteTitle);
-    final body =
-        endCopy?.body ??
-        (nextIsRest ? l10n.timeForBreak : l10n.readyForNextFocus);
-
-    return TimerStageLayout(
-      visual: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            PresentationPhosphorIcons.checkCircle(),
-            size: 72,
-            color: Theme.of(context).colorScheme.primary,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            title,
-            style: Theme.of(context).textTheme.headlineSmall,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 8),
-          Text(body, textAlign: TextAlign.center),
-        ],
-      ),
-      footer: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TimerButtonSlot(
-            child: FilledButton(
-              onPressed: () => runTimerAction(
-                context,
-                ref,
-                () => ref.read(timerCoordinatorProvider).advanceSegment(),
-              ),
-              style: FilledButton.styleFrom(
-                minimumSize: const Size(double.infinity, 48),
-              ),
-              child: Text(
-                nextIsRest ? l10n.startBreakUpper : l10n.startFocusUpper,
-              ),
-            ),
-          ),
-          if (nextIsRest) ...[
-            const SizedBox(height: 8),
-            TimerButtonSlot(
-              child: TextButton(
-                onPressed: () => runTimerAction(
-                  context,
-                  ref,
-                  () => ref.read(timerCoordinatorProvider).skipBreak(),
-                ),
-                child: Text(l10n.skipBreak),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _SessionCompleteBody extends ConsumerStatefulWidget {
-  const _SessionCompleteBody({required this.view});
-
-  final TimerViewState view;
-
-  @override
-  ConsumerState<_SessionCompleteBody> createState() =>
-      _SessionCompleteBodyState();
-}
-
-class _SessionCompleteBodyState extends ConsumerState<_SessionCompleteBody> {
-  late final SoftCompletePresentationIntent _intent =
-      SoftCompletePresentationIntent();
-
-  Future<bool> _run(SoftCompleteWireTarget wire) {
-    final coordinator = ref.read(timerCoordinatorProvider);
-    return runTimerAction(
-      context,
-      ref,
-      () => switch (wire) {
-        SoftCompleteWireTarget.restartSameTag => coordinator.restartSameTag(),
-        SoftCompleteWireTarget.dismissSessionComplete =>
-          coordinator.dismissSessionComplete(),
-      },
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final language = ref
-        .watch(appSettingsStreamProvider)
-        .maybeWhen(data: (s) => s.language, orElse: () => 'en');
-    final screen = _intent.present(
-      view: widget.view,
-      l10n: context.l10n,
-      languageCode: language,
-    );
-
-    return switch (screen) {
-      SoftCompleteCelebration(
-        :final lottieAsset,
-        :final headline,
-        :final body,
-        :final primary,
-        :final secondary,
-      ) =>
-        TimerStageLayout(
-          visual: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SessionCompleteLottie(asset: lottieAsset),
-              const SizedBox(height: 16),
-              Text(
-                headline,
-                style: Theme.of(context).textTheme.headlineMedium,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              Text(body, textAlign: TextAlign.center),
-            ],
-          ),
-          footer: _footer(primary, secondary),
-        ),
-      SoftCompleteSimple(
-        :final headline,
-        :final segmentEndBody,
-        :final savedLine,
-        :final durationLine,
-        :final primary,
-        :final secondary,
-      ) =>
-        TimerStageLayout(
-          visual: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                headline,
-                style: Theme.of(context).textTheme.headlineMedium,
-                textAlign: TextAlign.center,
-              ),
-              if (segmentEndBody != null) ...[
-                const SizedBox(height: 8),
-                Text(segmentEndBody, textAlign: TextAlign.center),
-              ],
-              const SizedBox(height: 8),
-              Text(savedLine, textAlign: TextAlign.center),
-              const SizedBox(height: 8),
-              Text(durationLine, textAlign: TextAlign.center),
-            ],
-          ),
-          footer: _footer(primary, secondary),
-        ),
-    };
-  }
-
-  Widget _footer(SoftCompleteAction primary, SoftCompleteAction secondary) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        TimerButtonSlot(
-          child: FilledButton(
-            onPressed: () => _run(primary.wire),
-            style: FilledButton.styleFrom(
-              minimumSize: const Size(double.infinity, 48),
-            ),
-            child: Text(primary.label),
-          ),
-        ),
-        const SizedBox(height: 8),
-        TimerButtonSlot(
-          child: OutlinedButton(
-            onPressed: () => _run(secondary.wire),
-            child: Text(secondary.label),
-          ),
-        ),
-      ],
     );
   }
 }

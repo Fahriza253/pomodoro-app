@@ -136,6 +136,12 @@ abstract final class PresentationPhosphorIcons {
     fontPackage: _pkg,
     matchTextDirection: true,
   );
+  static const timer = IconData(
+    0xe492,
+    fontFamily: _regular,
+    fontPackage: _pkg,
+    matchTextDirection: true,
+  );
   static const listBullets = IconData(
     0xe2f2,
     fontFamily: _regular,

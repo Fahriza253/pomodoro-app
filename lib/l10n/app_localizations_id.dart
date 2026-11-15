@@ -629,6 +629,17 @@ class AppLocalizationsId extends AppLocalizations {
   String get alertControlsSheetTitle => 'Kontrol Alert';
 
   @override
+  String get timerStartSettingsSheetTitle => 'Mulai timer';
+
+  @override
+  String get timerPreStartCountdownTitle =>
+      'Hitungan mundur 3-2-1 sebelum fokus';
+
+  @override
+  String get timerPreStartCountdownSubtitle =>
+      'Menampilkan hitungan mundur singkat saat memulai sesi Pomodoro';
+
+  @override
   String get muted => 'Bisu';
 
   @override

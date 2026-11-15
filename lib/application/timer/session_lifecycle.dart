@@ -1,5 +1,10 @@
 import 'package:pomodoro_app/application/timer/config_snapshot_factory.dart';
 import 'package:pomodoro_app/application/timer/lifecycle_result.dart';
+import 'package:pomodoro_app/application/timer/segment_boundary_description.dart';
+import 'package:pomodoro_app/application/timer/session_lifecycle_persistence.dart';
+import 'package:pomodoro_app/application/timer/session_runtime_context.dart';
+import 'package:pomodoro_app/application/timer/session_terminal_follow_up.dart';
+import 'package:pomodoro_app/application/timer/session_wall_clock_totals.dart';
 import 'package:pomodoro_app/application/timer/persist_reason.dart';
 import 'package:pomodoro_app/application/timer/session_segment_writer.dart';
 import 'package:pomodoro_app/application/timer/timer_state_builder.dart';
@@ -26,7 +31,7 @@ class SessionLifecycle {
   SessionLifecycle({
     required SessionRepository sessionRepository,
     required this._tagRepository,
-    required this._activeTimerStateRepository,
+    required ActiveTimerStateRepository activeTimerStateRepository,
     required ClockAdapter clock,
     SessionSegmentWriter? segmentWriter,
     TimerEngine? engine,
@@ -35,6 +40,7 @@ class SessionLifecycle {
     TimerStateBuilder? stateBuilder,
     Uuid? uuid,
   }) : _sessionRepository = sessionRepository,
+       _activeTimerStateRepository = activeTimerStateRepository,
        _clock = clock,
        _segmentWriter =
            segmentWriter ??
@@ -47,7 +53,18 @@ class SessionLifecycle {
        _configSnapshotFactory =
            configSnapshotFactory ?? const ConfigSnapshotFactory(),
        _stateBuilder = stateBuilder ?? const TimerStateBuilder(),
-       _uuid = uuid ?? const Uuid();
+       _uuid = uuid ?? const Uuid(),
+       _context = SessionRuntimeContext(),
+       _totals = SessionWallClockTotals(clock) {
+    _persistence = SessionLifecyclePersistence(
+      context: _context,
+      totals: _totals,
+      segmentWriter: _segmentWriter,
+      activeTimerStateRepository: _activeTimerStateRepository,
+      clock: _clock,
+      currentEngineState: () => _engine.currentState,
+    );
+  }
 
   final SessionRepository _sessionRepository;
   final TagRepository _tagRepository;
@@ -59,17 +76,15 @@ class SessionLifecycle {
   final ConfigSnapshotFactory _configSnapshotFactory;
   final TimerStateBuilder _stateBuilder;
   final Uuid _uuid;
-
-  String? _sessionId;
-  String? _tagId;
-  String? _tagName;
-  List<String> _segmentIds = const [];
+  final SessionRuntimeContext _context;
+  final SessionWallClockTotals _totals;
+  late final SessionLifecyclePersistence _persistence;
 
   TimerEngineState get currentState => _engine.currentState;
-  String? get sessionId => _sessionId;
-  String? get tagId => _tagId;
-  String? get tagName => _tagName;
-  bool get hasActiveSession => _sessionId != null;
+  String? get sessionId => _context.sessionId;
+  String? get tagId => _context.tagId;
+  String? get tagName => _context.tagName;
+  bool get hasActiveSession => _context.hasActiveSession;
 
   Future<LifecycleResult> startPomodoro(String tagId) async {
     await _guardNoActiveSession();
@@ -112,25 +127,23 @@ class SessionLifecycle {
     );
   }
 
-  Future<LifecycleResult> pause() async {
-    final before = _engine.currentState;
-    _engine.pause(_clock.nowUtc());
-    await _persistAfterCommand(before, PersistReason.pause);
-    return _result(before);
-  }
+  Future<LifecycleResult> pause() => _mutateAndPersist(
+    mutate: _engine.pause,
+    reason: PersistReason.pause,
+  );
 
-  Future<LifecycleResult> resume() async {
-    final before = _engine.currentState;
-    _engine.resume(_clock.nowUtc());
-    _engine.tick(_clock.nowUtc());
-    await _persistAfterCommand(before, PersistReason.resume);
-    return _result(before);
-  }
+  Future<LifecycleResult> resume() => _mutateAndPersist(
+    mutate: (now) {
+      _engine.resume(now);
+      _engine.tick(now);
+    },
+    reason: PersistReason.resume,
+  );
 
   Future<LifecycleResult> stop() async {
     await _guardActiveSession();
     final before = _engine.currentState;
-    final activeSec = totalActiveSec(before);
+    final activeSec = _totals.totalActiveSec(before);
     if (isWithinEarlyStopGrace(activeSec)) {
       // BR-TIMER-026: discard — no abandoned row, no failure tone.
       await _discardActiveSession();
@@ -144,19 +157,15 @@ class SessionLifecycle {
     );
   }
 
-  Future<LifecycleResult> skipBreak() async {
-    final before = _engine.currentState;
-    _engine.skipBreak(_clock.nowUtc());
-    await _persistAfterCommand(before, PersistReason.segmentTransition);
-    return _result(before);
-  }
+  Future<LifecycleResult> skipBreak() => _mutateAndPersist(
+    mutate: _engine.skipBreak,
+    reason: PersistReason.segmentTransition,
+  );
 
-  Future<LifecycleResult> advanceSegment() async {
-    final before = _engine.currentState;
-    _engine.advanceFromSegmentComplete(_clock.nowUtc());
-    await _persistAfterCommand(before, PersistReason.segmentTransition);
-    return _result(before);
-  }
+  Future<LifecycleResult> advanceSegment() => _mutateAndPersist(
+    mutate: _engine.advanceFromSegmentComplete,
+    reason: PersistReason.segmentTransition,
+  );
 
   Future<LifecycleResult> continuePomodoro() async {
     await _guardActiveSession();
@@ -172,32 +181,45 @@ class SessionLifecycle {
         plannedSec: plan.plannedSec,
       );
     }).toList();
-    _segmentIds = [..._segmentIds, ...newInputs.map((s) => s.id)];
+    _context.appendSegmentIds(newInputs.map((s) => s.id));
     await _segmentWriter.appendAndStart(
-      sessionId: _sessionId!,
+      sessionId: _context.sessionId!,
       newSegments: newInputs,
       pomodoroCyclesTarget: after.pomodoroCyclesTarget,
-      activeSegmentId: _segmentIds[after.currentSegmentIndex],
+      activeSegmentId: _context.segmentIds[after.currentSegmentIndex],
       state: after,
-      totalActiveSec: totalActiveSec(after),
-      totalPausedSec: totalPausedSec(after),
+      totalActiveSec: _totals.totalActiveSec(after),
+      totalPausedSec: _totals.totalPausedSec(after),
     );
-    await _persistAfterCommand(before, PersistReason.segmentTransition);
-    return _result(before);
+    final nowUtc = _clock.nowUtc();
+    final boundary = describeSegmentBoundary(
+      before: before,
+      after: after,
+      nowUtc: nowUtc,
+    );
+    await _persistence.syncAfterTransition(
+      before: before,
+      reason: PersistReason.segmentTransition,
+      boundary: boundary,
+      omitStartedSegment: true,
+    );
+    return _result(before, boundary: boundary);
   }
 
   Future<LifecycleResult> completeFlexible() async {
     await _guardActiveSession();
-    final before = _engine.currentState;
-    if (!before.isFlexible) {
+    if (!_engine.currentState.isFlexible) {
       throw TimerTransitionError('completeFlexible requires flexible mode');
     }
-    if (before.phase == EnginePhase.paused) {
-      _engine.resume(_clock.nowUtc());
-    }
-    _engine.completeFlexible(_clock.nowUtc());
-    await _persistAfterCommand(before, PersistReason.segmentTransition);
-    return _result(before);
+    return _mutateAndPersist(
+      mutate: (now) {
+        if (_engine.currentState.phase == EnginePhase.paused) {
+          _engine.resume(now);
+        }
+        _engine.completeFlexible(now);
+      },
+      reason: PersistReason.segmentTransition,
+    );
   }
 
   Future<LifecycleResult> dismissSessionComplete() async {
@@ -206,19 +228,13 @@ class SessionLifecycle {
       return _result(before);
     }
     _requirePhase(EnginePhase.sessionComplete);
-    if (_sessionId != null) {
-      await _writeTerminalSession(SessionStatus.completed);
-      await _activeTimerStateRepository.delete();
-    }
-    _engine.dismissSessionComplete();
-    _engine.resetAfterTerminalHandled();
-    _clearSessionContext();
+    await _leaveSessionCompleteTerminal(retainTagContext: false);
     return _result(before);
   }
 
   /// After auto-saved session complete: start a new session with the same tag.
   Future<LifecycleResult> restartSameTag() async {
-    final tagId = _tagId;
+    final tagId = _context.tagId;
     final mode = _engine.currentState.mode;
     if (tagId == null || mode == null) {
       throw const ConflictError(
@@ -227,14 +243,7 @@ class SessionLifecycle {
       );
     }
     _requirePhase(EnginePhase.sessionComplete);
-    if (_sessionId != null) {
-      await _writeTerminalSession(SessionStatus.completed);
-      await _activeTimerStateRepository.delete();
-      _sessionId = null;
-      _segmentIds = const [];
-    }
-    _engine.dismissSessionComplete();
-    _engine.resetAfterTerminalHandled();
+    await _leaveSessionCompleteTerminal(retainTagContext: true);
 
     final tagWithConfigs = await _tagRepository.getWithConfigs(tagId);
     if (mode == TimerMode.pomodoro) {
@@ -275,7 +284,6 @@ class SessionLifecycle {
   Future<LifecycleResult> resumeFromPersisted({
     ActiveTimerState? pending,
   }) async {
-    final before = _engine.currentState;
     final persisted = pending ?? await _activeTimerStateRepository.get();
     if (persisted == null) {
       throw const ConflictError(
@@ -295,19 +303,36 @@ class SessionLifecycle {
     );
     final tag = await _tagRepository.getById(session.tagId);
 
-    _sessionId = session.id;
-    _tagId = session.tagId;
-    _tagName = tag?.name;
-    _segmentIds = _stateBuilder.segmentIdsFromDb(dbSegments);
+    _context.bindSession(
+      sessionId: session.id,
+      tagId: session.tagId,
+      tagName: tag?.name,
+      segmentIds: _stateBuilder.segmentIdsFromDb(dbSegments),
+    );
 
     final rebuilt = _stateBuilder.fromPersisted(
       session: session,
       dbSegments: dbSegments,
       persisted: persisted,
     );
-    _engine.restoreFromPersisted(rebuilt, _clock.nowUtc());
-    await persistActiveState(PersistReason.sessionStart);
-    return _result(before);
+    final nowUtc = _clock.nowUtc();
+    _engine.restoreFromPersisted(rebuilt, nowUtc);
+    var after = _engine.currentState;
+    final boundary = describeSegmentBoundary(
+      before: rebuilt,
+      after: after,
+      nowUtc: nowUtc,
+    );
+    if (boundary.significant) {
+      await _persistence.syncAfterTransition(
+        before: rebuilt,
+        reason: PersistReason.segmentTransition,
+        boundary: boundary,
+      );
+      after = _engine.currentState;
+    }
+    await _persistence.persistActiveSnapshot(PersistReason.sessionStart);
+    return _result(rebuilt, boundary: boundary);
   }
 
   Future<LifecycleResult> declineRecovery({ActiveTimerState? pending}) async {
@@ -318,22 +343,30 @@ class SessionLifecycle {
         persisted.sessionId,
         _clock.nowUtc(),
       );
-      await _activeTimerStateRepository.delete();
+      await _persistence.deleteActiveSnapshot();
     }
-    _clearSessionContext();
+    _context.clearAll();
     return _result(before);
   }
 
   /// Wall-clock tick — MUST NOT persist unless phase/index changed (BR-TIMER-025).
   Future<LifecycleResult> tick() async {
     final before = _engine.currentState;
-    _engine.tick(_clock.nowUtc());
-    final after = _engine.currentState;
-    if (before.phase != after.phase ||
-        before.currentSegmentIndex != after.currentSegmentIndex) {
-      await _persistAfterCommand(before, PersistReason.segmentTransition);
+    final nowUtc = _clock.nowUtc();
+    _engine.tick(nowUtc);
+    final boundary = describeSegmentBoundary(
+      before: before,
+      after: _engine.currentState,
+      nowUtc: nowUtc,
+    );
+    if (boundary.significant) {
+      await _persistence.syncAfterTransition(
+        before: before,
+        reason: PersistReason.segmentTransition,
+        boundary: boundary,
+      );
     }
-    return _result(before);
+    return _result(before, boundary: boundary);
   }
 
   Future<LifecycleResult> failForFocusViolation() async {
@@ -357,66 +390,27 @@ class SessionLifecycle {
   /// still set for tray payload). Pomodoro stays soft-complete until Done.
   Future<LifecycleResult> persistCompletedKeepUi() async {
     final before = _engine.currentState;
-    if (_sessionId == null) {
+    if (_context.sessionId == null) {
       return _result(before);
     }
-    await _writeTerminalSession(SessionStatus.completed);
-    await _activeTimerStateRepository.delete();
-    _sessionId = null;
-    _segmentIds = const [];
+    await _persistence.writeTerminalSession(SessionStatus.completed);
+    await _persistence.deleteActiveSnapshot();
+    _context.clearSessionOnly();
     return _result(before);
   }
 
-  Future<void> persistActiveState(PersistReason reason) async {
-    final state = _engine.currentState;
-    if (_sessionId == null || !_shouldPersistPhase(state.phase)) {
-      return;
-    }
-    final nowMs = _clock.nowUtc().millisecondsSinceEpoch;
-    await _activeTimerStateRepository.upsert(
-      ActiveTimerState(
-        sessionId: _sessionId!,
-        enginePhase: state.phase,
-        currentSegmentId: _currentSegmentId(),
-        segmentStartedAtUtcMs:
-            state.segmentStartedAtUtc?.millisecondsSinceEpoch ?? nowMs,
-        flexibleReminderActiveSec: state.flexibleReminderActiveSec,
-        lastPersistedAtUtcMs: nowMs,
-        pauseStartedAtUtcMs: state.pauseStartedAtUtc?.millisecondsSinceEpoch,
-        frozenRemainingSec: state.phase == EnginePhase.paused
-            ? state.frozenRemainingSec
-            : null,
-      ),
-    );
-  }
+  Future<void> persistActiveState(PersistReason reason) =>
+      _persistence.persistActiveSnapshot(reason);
 
   void acknowledgeFlexibleReminder() {
     _engine.acknowledgeFlexibleReminder(_clock.nowUtc());
   }
 
-  int totalActiveSec([TimerEngineState? state]) {
-    final current = state ?? _engine.currentState;
-    if (current.isFlexible) {
-      return current.elapsedActiveSecAt(_clock.nowUtc());
-    }
-    return current.sessionStartedAtUtc == null
-        ? 0
-        : _clock.nowUtc().difference(current.sessionStartedAtUtc!).inSeconds -
-              totalPausedSec(current);
-  }
+  int totalActiveSec([TimerEngineState? state]) =>
+      _totals.totalActiveSec(state ?? _engine.currentState);
 
-  int totalPausedSec([TimerEngineState? state]) {
-    final current = state ?? _engine.currentState;
-    var paused = current.sessionTotalPausedSec + current.segmentPausedSec;
-    if (current.phase == EnginePhase.paused &&
-        current.pauseStartedAtUtc != null) {
-      paused += _clock
-          .nowUtc()
-          .difference(current.pauseStartedAtUtc!)
-          .inSeconds;
-    }
-    return paused < 0 ? 0 : paused;
-  }
+  int totalPausedSec([TimerEngineState? state]) =>
+      _totals.totalPausedSec(state ?? _engine.currentState);
 
   bool _disposed = false;
 
@@ -428,14 +422,52 @@ class SessionLifecycle {
     _engine.dispose();
   }
 
-  LifecycleResult _result(TimerEngineState before) {
+  LifecycleResult _result(
+    TimerEngineState before, {
+    SegmentBoundaryDescription? boundary,
+  }) {
+    final after = _engine.currentState;
+    final nowUtc = _clock.nowUtc();
     return LifecycleResult(
       before: before,
-      after: _engine.currentState,
-      sessionId: _sessionId,
-      segmentIds: _segmentIds,
-      currentSegmentId: _currentSegmentId(),
+      after: after,
+      sessionId: _context.sessionId,
+      segmentIds: _context.segmentIds,
+      currentSegmentId: _context.currentSegmentId(after),
+      segmentBoundary:
+          boundary ??
+          describeSegmentBoundary(before: before, after: after, nowUtc: nowUtc),
+      terminalFollowUp: _terminalFollowUp(before: before, after: after),
     );
+  }
+
+  SessionTerminalFollowUp _terminalFollowUp({
+    required TimerEngineState before,
+    required TimerEngineState after,
+  }) {
+    final enteredSessionComplete =
+        after.phase == EnginePhase.sessionComplete &&
+        before.phase != EnginePhase.sessionComplete;
+    if (!enteredSessionComplete || _context.sessionId == null) {
+      return SessionTerminalFollowUp.none;
+    }
+    if (after.isFlexible) {
+      return SessionTerminalFollowUp.persistCompletedKeepUi;
+    }
+    return SessionTerminalFollowUp.none;
+  }
+
+  /// Terminal completed write from session-complete prompt, then engine idle.
+  Future<void> _leaveSessionCompleteTerminal({
+    required bool retainTagContext,
+  }) async {
+    if (_context.sessionId != null) {
+      await _persistence.writeTerminalSession(SessionStatus.completed);
+      await _persistence.deleteActiveSnapshot();
+      _context.clearAfterTerminal(retainTagContext: retainTagContext);
+    }
+    _engine.dismissSessionComplete();
+    _engine.resetAfterTerminalHandled();
   }
 
   /// Terminal write + idle engine. [LifecycleResult.sessionId] is the
@@ -445,19 +477,27 @@ class SessionLifecycle {
     required SessionStatus status,
     required void Function() resetEngine,
   }) async {
-    final sessionId = _sessionId;
-    final segmentIds = _segmentIds;
-    final currentSegmentId = _currentSegmentId();
-    await _writeTerminalSession(status);
-    await _activeTimerStateRepository.delete();
-    _clearSessionContext();
+    final sessionId = _context.sessionId;
+    final segmentIds = _context.segmentIds;
+    final currentSegmentId = _context.currentSegmentId(before);
+    await _persistence.writeTerminalSession(status);
+    await _persistence.deleteActiveSnapshot();
+    _context.clearAll();
     resetEngine();
+    final after = _engine.currentState;
+    final nowUtc = _clock.nowUtc();
+    final boundary = describeSegmentBoundary(
+      before: before,
+      after: after,
+      nowUtc: nowUtc,
+    );
     return LifecycleResult(
       before: before,
-      after: _engine.currentState,
+      after: after,
       sessionId: sessionId,
       segmentIds: segmentIds,
       currentSegmentId: currentSegmentId,
+      segmentBoundary: boundary,
     );
   }
 
@@ -507,77 +547,48 @@ class SessionLifecycle {
       ),
     );
 
-    _sessionId = sessionId;
-    _tagId = tagId;
-    _tagName = tagName;
-    _segmentIds = segmentIds;
+    _context.bindSession(
+      sessionId: sessionId,
+      tagId: tagId,
+      tagName: tagName,
+      segmentIds: segmentIds,
+    );
 
     startEngine(now);
 
-    await persistActiveState(PersistReason.sessionStart);
+    await _persistence.persistActiveSnapshot(PersistReason.sessionStart);
     return _result(before);
   }
 
-  /// Persist Segment progress + ActiveTimerState. Does not finalize
-  /// session-complete (facade Alerts first, then [persistCompletedKeepUi]).
-  Future<void> _persistAfterCommand(
-    TimerEngineState before,
-    PersistReason reason,
-  ) async {
-    final after = _engine.currentState;
-    if (_sessionId != null &&
-        (before.currentSegmentIndex != after.currentSegmentIndex ||
-            before.phase != after.phase)) {
-      await _segmentWriter.syncOnTransition(
-        sessionId: _sessionId!,
-        segmentIds: _segmentIds,
-        before: before,
-        after: after,
-        totalActiveSec: totalActiveSec(after),
-        totalPausedSec: totalPausedSec(after),
-      );
-    }
-
-    await persistActiveState(reason);
+  Future<LifecycleResult> _mutateAndPersist({
+    required void Function(DateTime now) mutate,
+    required PersistReason reason,
+  }) async {
+    final before = _engine.currentState;
+    final nowUtc = _clock.nowUtc();
+    mutate(nowUtc);
+    final boundary = describeSegmentBoundary(
+      before: before,
+      after: _engine.currentState,
+      nowUtc: nowUtc,
+    );
+    await _persistence.syncAfterTransition(
+      before: before,
+      reason: reason,
+      boundary: boundary,
+    );
+    return _result(before, boundary: boundary);
   }
 
   Future<void> _discardActiveSession() async {
-    if (_sessionId == null) {
+    final sessionId = _context.sessionId;
+    if (sessionId == null) {
       return;
     }
-    await _sessionRepository.deleteSession(_sessionId!);
-    await _activeTimerStateRepository.delete();
-    _clearSessionContext();
+    await _sessionRepository.deleteSession(sessionId);
+    await _persistence.deleteActiveSnapshot();
+    _context.clearAll();
   }
-
-  Future<void> _writeTerminalSession(SessionStatus terminalStatus) async {
-    if (_sessionId == null) {
-      return;
-    }
-    final state = _engine.currentState;
-    await _segmentWriter.writeTerminal(
-      sessionId: _sessionId!,
-      segmentIds: _segmentIds,
-      state: state,
-      terminalStatus: terminalStatus,
-      totalActiveSec: totalActiveSec(state),
-      totalPausedSec: totalPausedSec(state),
-    );
-  }
-
-  String? _currentSegmentId() {
-    final index = _engine.currentState.currentSegmentIndex;
-    if (index < 0 || index >= _segmentIds.length) {
-      return null;
-    }
-    return _segmentIds[index];
-  }
-
-  bool _shouldPersistPhase(EnginePhase phase) =>
-      phase == EnginePhase.running ||
-      phase == EnginePhase.paused ||
-      phase == EnginePhase.segmentComplete ||
-      phase == EnginePhase.sessionComplete;
 
   String _localTimelineDate(DateTime nowUtc) {
     final local = nowUtc.toLocal();
@@ -586,15 +597,8 @@ class SessionLifecycle {
     return '${local.year}-$m-$d';
   }
 
-  void _clearSessionContext() {
-    _sessionId = null;
-    _tagId = null;
-    _tagName = null;
-    _segmentIds = const [];
-  }
-
   Future<void> _guardNoActiveSession() async {
-    if (_sessionId != null ||
+    if (_context.sessionId != null ||
         (_engine.currentState.phase != EnginePhase.idle &&
             _engine.currentState.phase != EnginePhase.sessionComplete)) {
       throw const ConflictError(
@@ -612,7 +616,8 @@ class SessionLifecycle {
   }
 
   Future<void> _guardActiveSession() async {
-    if (_sessionId == null && _engine.currentState.phase == EnginePhase.idle) {
+    if (_context.sessionId == null &&
+        _engine.currentState.phase == EnginePhase.idle) {
       throw const ConflictError(
         code: 'TIMER_NO_ACTIVE_SESSION',
         message: 'Tidak ada sesi aktif.',

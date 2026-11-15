@@ -87,7 +87,10 @@ void main() {
     group('Pomodoro pre-start', () {
       test('beginPomodoroStart counts down then starts session', () {
         fakeAsync((async) {
-          final begin = coordinator.beginPomodoroStart(stack.tagId);
+          final begin = coordinator.beginPomodoroStart(
+            stack.tagId,
+            preStartCountdown: true,
+          );
           expect(begin.isOk, isTrue);
           expect(coordinator.currentViewState.preStartCountdown, 3);
           expect(coordinator.hasActiveSession, isFalse);
@@ -105,14 +108,14 @@ void main() {
       });
 
       test('skipPreStartAndLaunch starts without waiting', () async {
-        coordinator.beginPomodoroStart(stack.tagId);
+        coordinator.beginPomodoroStart(stack.tagId, preStartCountdown: true);
         final result = await coordinator.skipPreStartAndLaunch();
         expect(result.isOk, isTrue);
         expect(coordinator.currentViewState.phase, EnginePhase.running);
       });
 
       test('cancelPreStart returns to idle chrome', () {
-        coordinator.beginPomodoroStart(stack.tagId);
+        coordinator.beginPomodoroStart(stack.tagId, preStartCountdown: true);
         coordinator.cancelPreStart();
         expect(coordinator.currentViewState.isPreStart, isFalse);
       });

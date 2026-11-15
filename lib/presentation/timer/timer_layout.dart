@@ -13,7 +13,7 @@ const kTimerStagePadding = EdgeInsets.fromLTRB(24, 16, 24, 24);
 
 /// Share of leftover stage height used as margin around the middle visual.
 /// Split equally above and below the visual; the rest sits outside the cluster.
-const kTimerStageVisualMarginFraction = 0.30;
+const kTimerStageVisualMarginFraction = 0.36;
 
 const kTimerStageInnerSpacerFlex = 15;
 const kTimerStageOuterSpacerFlex = 35;

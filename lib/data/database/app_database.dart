@@ -20,7 +20,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   static final OnUpgrade _upgrade = stepByStep(
     from1To2: (m, schema) async {
@@ -81,6 +81,13 @@ class AppDatabase extends _$AppDatabase {
     from6To7: (m, schema) async {
       await m.database.customStatement('ALTER TABLE tags DROP COLUMN color');
       // Downgrade note: re-add TEXT NOT NULL DEFAULT '#2C638B' color (values lost).
+    },
+    from7To8: (m, schema) async {
+      await m.addColumn(
+        schema.appSettings,
+        schema.appSettings.pomodoroPreStartCountdown,
+      );
+      // Downgrade note: drop pomodoro_pre_start_countdown.
     },
   );
 

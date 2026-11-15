@@ -1,4 +1,4 @@
-import 'package:pomodoro_app/application/timer/segment_end_cycle_progress.dart';
+import 'package:pomodoro_app/application/timer/segment_end_semantics.dart';
 import 'package:pomodoro_app/application/timer/timer_flow_state.dart';
 import 'package:pomodoro_app/application/timer/timer_view_state.dart';
 import 'package:pomodoro_app/domain/common/enums.dart';
@@ -55,7 +55,7 @@ TimerViewState projectTimerViewState(TimerProjectionContext context) {
       ? earlyStopGraceRemainingSec(context.totalActiveSec)
       : 0;
 
-  final endSummary = _pomodoroSegmentEndSummary(state);
+  final endSummary = segmentEndSemanticsAtPrompt(state)?.pomodoroSummary;
 
   return TimerViewState(
     phase: state.phase,
@@ -114,7 +114,7 @@ TimerFlowState projectTimerFlowState(TimerProjectionContext context) {
       (state.phase == EnginePhase.running || state.phase == EnginePhase.paused)
       ? earlyStopGraceRemainingSec(context.totalActiveSec)
       : 0;
-  final summary = _pomodoroSegmentEndSummary(state);
+  final summary = segmentEndSemanticsAtPrompt(state)?.pomodoroSummary;
 
   return switch (state.phase) {
     EnginePhase.running => TimerActiveRunningFlow(
@@ -205,34 +205,3 @@ SessionStatus _durableSessionStatus(TimerProjectionContext context) {
   return SessionStatus.active;
 }
 
-PomodoroSegmentEndSummary? _pomodoroSegmentEndSummary(TimerEngineState state) {
-  if (state.phase != EnginePhase.segmentComplete &&
-      state.phase != EnginePhase.sessionComplete) {
-    return null;
-  }
-  if (!state.isPomodoro || state.segments.isEmpty) {
-    return null;
-  }
-  final index = state.currentSegmentIndex;
-  if (index < 0 || index >= state.segments.length) {
-    return null;
-  }
-  final sessionComplete = state.phase == EnginePhase.sessionComplete;
-  final nextIndex = index + 1;
-  final nextType = !sessionComplete && nextIndex < state.segments.length
-      ? state.segments[nextIndex].type
-      : null;
-  final finished = state.segments[index].type;
-  final progress = segmentEndCycleProgress(
-    cyclesCompletedAfterSegment: state.pomodoroCyclesCompleted,
-    cyclesTarget: state.pomodoroCyclesTarget,
-    finished: finished,
-    sessionComplete: sessionComplete,
-  );
-  return (
-    finishedType: finished,
-    nextType: nextType,
-    completedCount: progress.n,
-    totalCount: progress.total,
-  );
-}

@@ -1722,6 +1722,213 @@ class Shape9 extends i0.VersionedTable {
       columnsByName['updated_at']! as i1.GeneratedColumn<int>;
 }
 
+final class Schema8 extends i0.VersionedSchema {
+  Schema8({required super.database}) : super(version: 8);
+  @override
+  late final List<i1.DatabaseSchemaEntity> entities = [
+    tags,
+    tagModeConfigs,
+    sessions,
+    sessionSegments,
+    activeTimerStates,
+    appSettings,
+  ];
+  late final Shape9 tags = Shape9(
+    source: i0.VersionedTable(
+      entityName: 'tags',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(id)'],
+      columns: [
+        _column_0,
+        _column_1,
+        _column_3,
+        _column_4,
+        _column_5,
+        _column_6,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape1 tagModeConfigs = Shape1(
+    source: i0.VersionedTable(
+      entityName: 'tag_mode_configs',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(id)', 'UNIQUE(tag_id, mode)'],
+      columns: [
+        _column_0,
+        _column_7,
+        _column_8,
+        _column_9,
+        _column_10,
+        _column_11,
+        _column_12,
+        _column_13,
+        _column_14,
+        _column_15,
+        _column_16,
+        _column_17,
+        _column_18,
+        _column_6,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape2 sessions = Shape2(
+    source: i0.VersionedTable(
+      entityName: 'sessions',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(id)'],
+      columns: [
+        _column_0,
+        _column_7,
+        _column_8,
+        _column_19,
+        _column_20,
+        _column_21,
+        _column_22,
+        _column_23,
+        _column_24,
+        _column_25,
+        _column_26,
+        _column_27,
+        _column_28,
+        _column_5,
+        _column_6,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape3 sessionSegments = Shape3(
+    source: i0.VersionedTable(
+      entityName: 'session_segments',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(id)', 'UNIQUE(session_id, order_index)'],
+      columns: [
+        _column_0,
+        _column_29,
+        _column_30,
+        _column_31,
+        _column_32,
+        _column_33,
+        _column_34,
+        _column_35,
+        _column_36,
+        _column_21,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape6 activeTimerStates = Shape6(
+    source: i0.VersionedTable(
+      entityName: 'active_timer_states',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(id)'],
+      columns: [
+        _column_0,
+        _column_29,
+        _column_37,
+        _column_38,
+        _column_39,
+        _column_40,
+        _column_41,
+        _column_55,
+        _column_56,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape10 appSettings = Shape10(
+    source: i0.VersionedTable(
+      entityName: 'app_settings',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(id)'],
+      columns: [
+        _column_0,
+        _column_42,
+        _column_43,
+        _column_44,
+        _column_57,
+        _column_58,
+        _column_59,
+        _column_45,
+        _column_46,
+        _column_47,
+        _column_48,
+        _column_49,
+        _column_50,
+        _column_51,
+        _column_52,
+        _column_53,
+        _column_60,
+        _column_6,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+}
+
+class Shape10 extends i0.VersionedTable {
+  Shape10({required super.source, required super.alias}) : super.aliased();
+  i1.GeneratedColumn<String> get id =>
+      columnsByName['id']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get alertTone =>
+      columnsByName['alert_tone']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get alertToneBreakOver =>
+      columnsByName['alert_tone_break_over']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get alertToneFocusFailure =>
+      columnsByName['alert_tone_focus_failure']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get alertHapticEnabled =>
+      columnsByName['alert_haptic_enabled']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get alertSoundMuted =>
+      columnsByName['alert_sound_muted']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get alertFlashEnabled =>
+      columnsByName['alert_flash_enabled']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<String> get focusMode =>
+      columnsByName['focus_mode']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get whitelistJson =>
+      columnsByName['whitelist_json']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get focusViolationThresholdSec =>
+      columnsByName['focus_violation_threshold_sec']!
+          as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<String> get theme =>
+      columnsByName['theme']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get alwaysOnDisplay =>
+      columnsByName['always_on_display']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<String> get language =>
+      columnsByName['language']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get weekStartDay =>
+      columnsByName['week_start_day']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<String> get timeFormat =>
+      columnsByName['time_format']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get trackFailedSessions =>
+      columnsByName['track_failed_sessions']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get pomodoroPreStartCountdown =>
+      columnsByName['pomodoro_pre_start_countdown']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get updatedAt =>
+      columnsByName['updated_at']! as i1.GeneratedColumn<int>;
+}
+
+i1.GeneratedColumn<int> _column_60(String aliasedName) =>
+    i1.GeneratedColumn<int>(
+      'pomodoro_pre_start_countdown',
+      aliasedName,
+      false,
+      type: i1.DriftSqlType.int,
+      $customConstraints: 'NOT NULL DEFAULT 0',
+      defaultValue: const i1.CustomExpression('0'),
+    );
 i0.MigrationStepWithVersion migrationSteps({
   required Future<void> Function(i1.Migrator m, Schema2 schema) from1To2,
   required Future<void> Function(i1.Migrator m, Schema3 schema) from2To3,
@@ -1729,6 +1936,7 @@ i0.MigrationStepWithVersion migrationSteps({
   required Future<void> Function(i1.Migrator m, Schema5 schema) from4To5,
   required Future<void> Function(i1.Migrator m, Schema6 schema) from5To6,
   required Future<void> Function(i1.Migrator m, Schema7 schema) from6To7,
+  required Future<void> Function(i1.Migrator m, Schema8 schema) from7To8,
 }) {
   return (currentVersion, database) async {
     switch (currentVersion) {
@@ -1762,6 +1970,11 @@ i0.MigrationStepWithVersion migrationSteps({
         final migrator = i1.Migrator(database, schema);
         await from6To7(migrator, schema);
         return 7;
+      case 7:
+        final schema = Schema8(database: database);
+        final migrator = i1.Migrator(database, schema);
+        await from7To8(migrator, schema);
+        return 8;
       default:
         throw ArgumentError.value('Unknown migration from $currentVersion');
     }
@@ -1775,6 +1988,7 @@ i1.OnUpgrade stepByStep({
   required Future<void> Function(i1.Migrator m, Schema5 schema) from4To5,
   required Future<void> Function(i1.Migrator m, Schema6 schema) from5To6,
   required Future<void> Function(i1.Migrator m, Schema7 schema) from6To7,
+  required Future<void> Function(i1.Migrator m, Schema8 schema) from7To8,
 }) => i0.VersionedSchema.stepByStepHelper(
   step: migrationSteps(
     from1To2: from1To2,
@@ -1783,5 +1997,6 @@ i1.OnUpgrade stepByStep({
     from4To5: from4To5,
     from5To6: from5To6,
     from6To7: from6To7,
+    from7To8: from7To8,
   ),
 );

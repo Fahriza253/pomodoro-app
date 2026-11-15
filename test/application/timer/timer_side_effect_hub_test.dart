@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:pomodoro_app/application/timer/segment_boundary_description.dart';
 import 'package:pomodoro_app/application/timer/side_effect_context.dart';
 import 'package:pomodoro_app/application/timer/timer_side_effect_hub.dart';
 import 'package:pomodoro_app/data/repositories/settings_repository.dart';
@@ -443,6 +444,11 @@ SideEffectContext _focusEndedContext({
     sessionId: 'session-1',
     before: before,
     after: after,
+    segmentBoundary: describeSegmentBoundary(
+      before: before,
+      after: after,
+      nowUtc: now,
+    ),
     isForeground: isForeground,
     suppressNextSegmentAlert: suppressNextSegmentAlert,
     nowUtc: now,
@@ -467,6 +473,11 @@ SideEffectContext _autoAdvancedContext({
     sessionId: 'session-1',
     before: before,
     after: after,
+    segmentBoundary: describeSegmentBoundary(
+      before: before,
+      after: after,
+      nowUtc: now,
+    ),
     isForeground: false,
     suppressNextSegmentAlert: false,
     nowUtc: now,
@@ -559,6 +570,7 @@ const _hubTestSettings = AppSettings(
   weekStartDay: 1,
   timeFormat: TimeFormat.h24,
   trackFailedSessions: false,
+  pomodoroPreStartCountdown: false,
   updatedAtUtcMs: 0,
 );
 

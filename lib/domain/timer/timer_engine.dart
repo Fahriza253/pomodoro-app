@@ -397,7 +397,21 @@ class TimerEngine {
       throw TimerTransitionError('Cannot restore idle engine phase');
     }
     _emit(state);
-    tick(nowUtc.toUtc());
+    catchUpWallClock(nowUtc);
+  }
+
+  /// Advances running Pomodoro segments until wall clock is caught up.
+  void catchUpWallClock(DateTime nowUtc, {int maxSteps = 32}) {
+    final now = nowUtc.toUtc();
+    for (var step = 0; step < maxSteps; step++) {
+      if (_state.phase != EnginePhase.running || !_state.isPomodoro) {
+        return;
+      }
+      if (_state.remainingSecAt(now) > 0) {
+        return;
+      }
+      tick(now);
+    }
   }
 
   void _completeCurrentSegment(DateTime nowUtc, {required bool skipped}) {
@@ -460,13 +474,14 @@ class TimerEngine {
     final autoStart = _shouldAutoStartAfterFocus(nextSegment.type);
 
     if (autoStart) {
+      final nextStart = _state.segmentPlannedEndAtUtc() ?? nowUtc;
       _emit(
         _state.copyWith(
           phase: EnginePhase.running,
           currentSegmentIndex: nextIndex,
           pomodoroFocusCount: focusCount,
           pomodoroCyclesCompleted: cyclesCompleted,
-          segmentStartedAtUtc: nowUtc,
+          segmentStartedAtUtc: nextStart,
           segmentPausedSec: 0,
           clearPauseStartedAt: true,
           clearFrozenRemaining: true,
@@ -515,13 +530,14 @@ class TimerEngine {
     final autoStart = _shouldAutoStartAfterRest(nextSegment.type);
 
     if (autoStart) {
+      final nextStart = _state.segmentPlannedEndAtUtc() ?? nowUtc;
       _emit(
         _state.copyWith(
           phase: EnginePhase.running,
           currentSegmentIndex: nextIndex,
           pomodoroFocusCount: focusCount,
           pomodoroCyclesCompleted: cyclesCompleted,
-          segmentStartedAtUtc: nowUtc,
+          segmentStartedAtUtc: nextStart,
           segmentPausedSec: 0,
           clearPauseStartedAt: true,
           clearFrozenRemaining: true,

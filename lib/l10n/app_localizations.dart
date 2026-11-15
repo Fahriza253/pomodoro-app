@@ -1238,6 +1238,24 @@ abstract class AppLocalizations {
   /// **'Alert Controls'**
   String get alertControlsSheetTitle;
 
+  /// No description provided for @timerStartSettingsSheetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Timer start'**
+  String get timerStartSettingsSheetTitle;
+
+  /// No description provided for @timerPreStartCountdownTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'3-2-1 countdown before focus'**
+  String get timerPreStartCountdownTitle;
+
+  /// No description provided for @timerPreStartCountdownSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Shows a short countdown when you start a Pomodoro session'**
+  String get timerPreStartCountdownSubtitle;
+
   /// No description provided for @muted.
   ///
   /// In en, this message translates to:

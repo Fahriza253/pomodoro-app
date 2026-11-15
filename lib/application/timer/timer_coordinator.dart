@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:pomodoro_app/application/timer/lifecycle_result.dart';
+import 'package:pomodoro_app/application/timer/session_terminal_follow_up.dart';
 import 'package:pomodoro_app/application/timer/notification_strings.dart';
 import 'package:pomodoro_app/application/timer/persist_reason.dart';
 import 'package:pomodoro_app/application/timer/timer_flow_projection.dart';
@@ -90,8 +91,11 @@ class TimerCoordinator {
     _emitViewState();
   }
 
-  /// Pomodoro UC-01: 3-2-1 countdown then [startPomodoro].
-  AppResult<void> beginPomodoroStart(String tagId) {
+  /// Pomodoro UC-01: optional 3-2-1 countdown then [startPomodoro].
+  AppResult<void> beginPomodoroStart(
+    String tagId, {
+    bool preStartCountdown = false,
+  }) {
     if (_lifecycle.currentState.phase != EnginePhase.idle) {
       return err(
         const ValidationError(
@@ -115,6 +119,10 @@ class TimerCoordinator {
           message: 'Hitungan mundur sudah berjalan.',
         ),
       );
+    }
+    if (!preStartCountdown) {
+      unawaited(startPomodoro(tagId));
+      return ok();
     }
     _preStartTagId = tagId;
     _preStartCountdown = 3;
@@ -141,13 +149,7 @@ class TimerCoordinator {
         ),
       );
     }
-    return _runAsync(() async {
-    _preStartTimer?.cancel();
-    _preStartTimer = null;
-    _preStartCountdown = 0;
-    _emitViewState();
-    await _launchAfterPreStart();
-    });
+    return _runAsync(_launchAfterPreStart);
   }
 
   Future<AppResult<void>> startPomodoro(String tagId) => _runAsync(() async {
@@ -262,8 +264,7 @@ class TimerCoordinator {
     final result = await _lifecycle.tick();
     _emitViewState();
 
-    if (result.before.phase != result.after.phase ||
-        result.before.currentSegmentIndex != result.after.currentSegmentIndex) {
+    if (result.segmentBoundary.significant) {
       await _afterTransition(result);
     } else {
       _maybeFireFlexibleReminder(result.after);
@@ -317,8 +318,6 @@ class TimerCoordinator {
       return;
     }
     if (current <= 1) {
-      _preStartCountdown = 0;
-      _emitViewState();
       unawaited(_launchAfterPreStart());
       return;
     }
@@ -355,15 +354,9 @@ class TimerCoordinator {
   }
 
   Future<void> _afterTransition(LifecycleResult result) async {
-    final enteredSessionComplete =
-        result.after.phase == EnginePhase.sessionComplete &&
-        result.before.phase != EnginePhase.sessionComplete &&
-        result.sessionId != null;
-
     await _runSegmentSideEffects(result);
-    if (enteredSessionComplete && !result.after.isPomodoro) {
-      // Flexible: auto-finalize completed while keeping tag UI context.
-      // Pomodoro stays soft-complete until Done / continue (ticket 02).
+    if (result.terminalFollowUp ==
+        SessionTerminalFollowUp.persistCompletedKeepUi) {
       await _lifecycle.persistCompletedKeepUi();
     }
 
@@ -389,6 +382,7 @@ class TimerCoordinator {
       sessionId: result.sessionId,
       before: result.before,
       after: result.after,
+      segmentBoundary: result.segmentBoundary,
       isForeground: _isInForeground,
       suppressNextSegmentAlert: _suppressNextSegmentAlert,
       nowUtc: _clock.nowUtc(),

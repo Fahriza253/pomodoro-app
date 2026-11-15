@@ -126,7 +126,20 @@ void main() {
   testWidgets('Pomodoro pre-start shows countdown and skip launches session', (
     tester,
   ) async {
-    await _pumpIdleTimer(tester);
+    final db = openAppDatabase(inMemory: true);
+    addTearDown(db.close);
+    await DatabaseSeeder(db).seedIfNeeded();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWith((ref) async => db),
+          testAppSettingsPreStartCountdownOverride,
+        ],
+        child: const PomodoroApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('START'));
     await tester.pump();

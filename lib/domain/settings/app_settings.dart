@@ -18,6 +18,7 @@ class AppSettings {
     required this.weekStartDay,
     required this.timeFormat,
     required this.trackFailedSessions,
+    required this.pomodoroPreStartCountdown,
     required this.updatedAtUtcMs,
   });
 
@@ -37,6 +38,7 @@ class AppSettings {
   final int weekStartDay;
   final TimeFormat timeFormat;
   final bool trackFailedSessions;
+  final bool pomodoroPreStartCountdown;
   final int updatedAtUtcMs;
 }
 
@@ -57,6 +59,7 @@ class AppSettingsPatch {
     this.weekStartDay,
     this.timeFormat,
     this.trackFailedSessions,
+    this.pomodoroPreStartCountdown,
   });
 
   final String? alertToneFocusSuccess;
@@ -74,4 +77,5 @@ class AppSettingsPatch {
   final int? weekStartDay;
   final TimeFormat? timeFormat;
   final bool? trackFailedSessions;
+  final bool? pomodoroPreStartCountdown;
 }

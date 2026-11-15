@@ -627,6 +627,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get alertControlsSheetTitle => 'Alert Controls';
 
   @override
+  String get timerStartSettingsSheetTitle => 'Timer start';
+
+  @override
+  String get timerPreStartCountdownTitle => '3-2-1 countdown before focus';
+
+  @override
+  String get timerPreStartCountdownSubtitle =>
+      'Shows a short countdown when you start a Pomodoro session';
+
+  @override
   String get muted => 'Muted';
 
   @override

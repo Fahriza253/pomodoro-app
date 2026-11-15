@@ -3639,6 +3639,18 @@ class $AppSettingsTableTable extends AppSettingsTable
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _pomodoroPreStartCountdownMeta =
+      const VerificationMeta('pomodoroPreStartCountdown');
+  @override
+  late final GeneratedColumn<int> pomodoroPreStartCountdown =
+      GeneratedColumn<int>(
+        'pomodoro_pre_start_countdown',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(0),
+      );
   static const VerificationMeta _updatedAtMeta = const VerificationMeta(
     'updatedAt',
   );
@@ -3668,6 +3680,7 @@ class $AppSettingsTableTable extends AppSettingsTable
     weekStartDay,
     timeFormat,
     trackFailedSessions,
+    pomodoroPreStartCountdown,
     updatedAt,
   ];
   @override
@@ -3801,6 +3814,15 @@ class $AppSettingsTableTable extends AppSettingsTable
         ),
       );
     }
+    if (data.containsKey('pomodoro_pre_start_countdown')) {
+      context.handle(
+        _pomodoroPreStartCountdownMeta,
+        pomodoroPreStartCountdown.isAcceptableOrUnknown(
+          data['pomodoro_pre_start_countdown']!,
+          _pomodoroPreStartCountdownMeta,
+        ),
+      );
+    }
     if (data.containsKey('updated_at')) {
       context.handle(
         _updatedAtMeta,
@@ -3884,6 +3906,10 @@ class $AppSettingsTableTable extends AppSettingsTable
         DriftSqlType.int,
         data['${effectivePrefix}track_failed_sessions'],
       )!,
+      pomodoroPreStartCountdown: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}pomodoro_pre_start_countdown'],
+      )!,
       updatedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}updated_at'],
@@ -3918,6 +3944,7 @@ class AppSettingsTableData extends DataClass
   final int weekStartDay;
   final String timeFormat;
   final int trackFailedSessions;
+  final int pomodoroPreStartCountdown;
   final int updatedAt;
   const AppSettingsTableData({
     required this.id,
@@ -3936,6 +3963,7 @@ class AppSettingsTableData extends DataClass
     required this.weekStartDay,
     required this.timeFormat,
     required this.trackFailedSessions,
+    required this.pomodoroPreStartCountdown,
     required this.updatedAt,
   });
   @override
@@ -3963,6 +3991,9 @@ class AppSettingsTableData extends DataClass
     map['week_start_day'] = Variable<int>(weekStartDay);
     map['time_format'] = Variable<String>(timeFormat);
     map['track_failed_sessions'] = Variable<int>(trackFailedSessions);
+    map['pomodoro_pre_start_countdown'] = Variable<int>(
+      pomodoroPreStartCountdown,
+    );
     map['updated_at'] = Variable<int>(updatedAt);
     return map;
   }
@@ -3985,6 +4016,7 @@ class AppSettingsTableData extends DataClass
       weekStartDay: Value(weekStartDay),
       timeFormat: Value(timeFormat),
       trackFailedSessions: Value(trackFailedSessions),
+      pomodoroPreStartCountdown: Value(pomodoroPreStartCountdown),
       updatedAt: Value(updatedAt),
     );
   }
@@ -4021,6 +4053,9 @@ class AppSettingsTableData extends DataClass
       trackFailedSessions: serializer.fromJson<int>(
         json['trackFailedSessions'],
       ),
+      pomodoroPreStartCountdown: serializer.fromJson<int>(
+        json['pomodoroPreStartCountdown'],
+      ),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
     );
   }
@@ -4046,6 +4081,9 @@ class AppSettingsTableData extends DataClass
       'weekStartDay': serializer.toJson<int>(weekStartDay),
       'timeFormat': serializer.toJson<String>(timeFormat),
       'trackFailedSessions': serializer.toJson<int>(trackFailedSessions),
+      'pomodoroPreStartCountdown': serializer.toJson<int>(
+        pomodoroPreStartCountdown,
+      ),
       'updatedAt': serializer.toJson<int>(updatedAt),
     };
   }
@@ -4067,6 +4105,7 @@ class AppSettingsTableData extends DataClass
     int? weekStartDay,
     String? timeFormat,
     int? trackFailedSessions,
+    int? pomodoroPreStartCountdown,
     int? updatedAt,
   }) => AppSettingsTableData(
     id: id ?? this.id,
@@ -4086,6 +4125,8 @@ class AppSettingsTableData extends DataClass
     weekStartDay: weekStartDay ?? this.weekStartDay,
     timeFormat: timeFormat ?? this.timeFormat,
     trackFailedSessions: trackFailedSessions ?? this.trackFailedSessions,
+    pomodoroPreStartCountdown:
+        pomodoroPreStartCountdown ?? this.pomodoroPreStartCountdown,
     updatedAt: updatedAt ?? this.updatedAt,
   );
   AppSettingsTableData copyWithCompanion(AppSettingsTableCompanion data) {
@@ -4130,6 +4171,9 @@ class AppSettingsTableData extends DataClass
       trackFailedSessions: data.trackFailedSessions.present
           ? data.trackFailedSessions.value
           : this.trackFailedSessions,
+      pomodoroPreStartCountdown: data.pomodoroPreStartCountdown.present
+          ? data.pomodoroPreStartCountdown.value
+          : this.pomodoroPreStartCountdown,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
   }
@@ -4153,6 +4197,7 @@ class AppSettingsTableData extends DataClass
           ..write('weekStartDay: $weekStartDay, ')
           ..write('timeFormat: $timeFormat, ')
           ..write('trackFailedSessions: $trackFailedSessions, ')
+          ..write('pomodoroPreStartCountdown: $pomodoroPreStartCountdown, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
         .toString();
@@ -4176,6 +4221,7 @@ class AppSettingsTableData extends DataClass
     weekStartDay,
     timeFormat,
     trackFailedSessions,
+    pomodoroPreStartCountdown,
     updatedAt,
   );
   @override
@@ -4198,6 +4244,7 @@ class AppSettingsTableData extends DataClass
           other.weekStartDay == this.weekStartDay &&
           other.timeFormat == this.timeFormat &&
           other.trackFailedSessions == this.trackFailedSessions &&
+          other.pomodoroPreStartCountdown == this.pomodoroPreStartCountdown &&
           other.updatedAt == this.updatedAt);
 }
 
@@ -4218,6 +4265,7 @@ class AppSettingsTableCompanion extends UpdateCompanion<AppSettingsTableData> {
   final Value<int> weekStartDay;
   final Value<String> timeFormat;
   final Value<int> trackFailedSessions;
+  final Value<int> pomodoroPreStartCountdown;
   final Value<int> updatedAt;
   final Value<int> rowid;
   const AppSettingsTableCompanion({
@@ -4237,6 +4285,7 @@ class AppSettingsTableCompanion extends UpdateCompanion<AppSettingsTableData> {
     this.weekStartDay = const Value.absent(),
     this.timeFormat = const Value.absent(),
     this.trackFailedSessions = const Value.absent(),
+    this.pomodoroPreStartCountdown = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -4257,6 +4306,7 @@ class AppSettingsTableCompanion extends UpdateCompanion<AppSettingsTableData> {
     this.weekStartDay = const Value.absent(),
     this.timeFormat = const Value.absent(),
     this.trackFailedSessions = const Value.absent(),
+    this.pomodoroPreStartCountdown = const Value.absent(),
     required int updatedAt,
     this.rowid = const Value.absent(),
   }) : id = Value(id),
@@ -4278,6 +4328,7 @@ class AppSettingsTableCompanion extends UpdateCompanion<AppSettingsTableData> {
     Expression<int>? weekStartDay,
     Expression<String>? timeFormat,
     Expression<int>? trackFailedSessions,
+    Expression<int>? pomodoroPreStartCountdown,
     Expression<int>? updatedAt,
     Expression<int>? rowid,
   }) {
@@ -4303,6 +4354,8 @@ class AppSettingsTableCompanion extends UpdateCompanion<AppSettingsTableData> {
       if (timeFormat != null) 'time_format': timeFormat,
       if (trackFailedSessions != null)
         'track_failed_sessions': trackFailedSessions,
+      if (pomodoroPreStartCountdown != null)
+        'pomodoro_pre_start_countdown': pomodoroPreStartCountdown,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
     });
@@ -4325,6 +4378,7 @@ class AppSettingsTableCompanion extends UpdateCompanion<AppSettingsTableData> {
     Value<int>? weekStartDay,
     Value<String>? timeFormat,
     Value<int>? trackFailedSessions,
+    Value<int>? pomodoroPreStartCountdown,
     Value<int>? updatedAt,
     Value<int>? rowid,
   }) {
@@ -4348,6 +4402,8 @@ class AppSettingsTableCompanion extends UpdateCompanion<AppSettingsTableData> {
       weekStartDay: weekStartDay ?? this.weekStartDay,
       timeFormat: timeFormat ?? this.timeFormat,
       trackFailedSessions: trackFailedSessions ?? this.trackFailedSessions,
+      pomodoroPreStartCountdown:
+          pomodoroPreStartCountdown ?? this.pomodoroPreStartCountdown,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
     );
@@ -4412,6 +4468,11 @@ class AppSettingsTableCompanion extends UpdateCompanion<AppSettingsTableData> {
     if (trackFailedSessions.present) {
       map['track_failed_sessions'] = Variable<int>(trackFailedSessions.value);
     }
+    if (pomodoroPreStartCountdown.present) {
+      map['pomodoro_pre_start_countdown'] = Variable<int>(
+        pomodoroPreStartCountdown.value,
+      );
+    }
     if (updatedAt.present) {
       map['updated_at'] = Variable<int>(updatedAt.value);
     }
@@ -4440,6 +4501,7 @@ class AppSettingsTableCompanion extends UpdateCompanion<AppSettingsTableData> {
           ..write('weekStartDay: $weekStartDay, ')
           ..write('timeFormat: $timeFormat, ')
           ..write('trackFailedSessions: $trackFailedSessions, ')
+          ..write('pomodoroPreStartCountdown: $pomodoroPreStartCountdown, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -7176,6 +7238,7 @@ typedef $$AppSettingsTableTableCreateCompanionBuilder =
       Value<int> weekStartDay,
       Value<String> timeFormat,
       Value<int> trackFailedSessions,
+      Value<int> pomodoroPreStartCountdown,
       required int updatedAt,
       Value<int> rowid,
     });
@@ -7197,6 +7260,7 @@ typedef $$AppSettingsTableTableUpdateCompanionBuilder =
       Value<int> weekStartDay,
       Value<String> timeFormat,
       Value<int> trackFailedSessions,
+      Value<int> pomodoroPreStartCountdown,
       Value<int> updatedAt,
       Value<int> rowid,
     });
@@ -7288,6 +7352,11 @@ class $$AppSettingsTableTableFilterComposer
 
   ColumnFilters<int> get trackFailedSessions => $composableBuilder(
     column: $table.trackFailedSessions,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get pomodoroPreStartCountdown => $composableBuilder(
+    column: $table.pomodoroPreStartCountdown,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -7386,6 +7455,11 @@ class $$AppSettingsTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get pomodoroPreStartCountdown => $composableBuilder(
+    column: $table.pomodoroPreStartCountdown,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get updatedAt => $composableBuilder(
     column: $table.updatedAt,
     builder: (column) => ColumnOrderings(column),
@@ -7474,6 +7548,11 @@ class $$AppSettingsTableTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<int> get pomodoroPreStartCountdown => $composableBuilder(
+    column: $table.pomodoroPreStartCountdown,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<int> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
 }
@@ -7531,6 +7610,7 @@ class $$AppSettingsTableTableTableManager
                 Value<int> weekStartDay = const Value.absent(),
                 Value<String> timeFormat = const Value.absent(),
                 Value<int> trackFailedSessions = const Value.absent(),
+                Value<int> pomodoroPreStartCountdown = const Value.absent(),
                 Value<int> updatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => AppSettingsTableCompanion(
@@ -7550,6 +7630,7 @@ class $$AppSettingsTableTableTableManager
                 weekStartDay: weekStartDay,
                 timeFormat: timeFormat,
                 trackFailedSessions: trackFailedSessions,
+                pomodoroPreStartCountdown: pomodoroPreStartCountdown,
                 updatedAt: updatedAt,
                 rowid: rowid,
               ),
@@ -7571,6 +7652,7 @@ class $$AppSettingsTableTableTableManager
                 Value<int> weekStartDay = const Value.absent(),
                 Value<String> timeFormat = const Value.absent(),
                 Value<int> trackFailedSessions = const Value.absent(),
+                Value<int> pomodoroPreStartCountdown = const Value.absent(),
                 required int updatedAt,
                 Value<int> rowid = const Value.absent(),
               }) => AppSettingsTableCompanion.insert(
@@ -7590,6 +7672,7 @@ class $$AppSettingsTableTableTableManager
                 weekStartDay: weekStartDay,
                 timeFormat: timeFormat,
                 trackFailedSessions: trackFailedSessions,
+                pomodoroPreStartCountdown: pomodoroPreStartCountdown,
                 updatedAt: updatedAt,
                 rowid: rowid,
               ),

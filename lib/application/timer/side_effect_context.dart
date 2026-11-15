@@ -1,3 +1,4 @@
+import 'package:pomodoro_app/application/timer/segment_boundary_description.dart';
 import 'package:pomodoro_app/domain/timer/models/timer_engine_state.dart';
 
 /// Immutable inputs for [TimerSideEffectHub] ops, built by the timer facade.
@@ -8,6 +9,7 @@ class SideEffectContext {
     required this.sessionId,
     this.before,
     this.after,
+    this.segmentBoundary,
     required this.isForeground,
     required this.suppressNextSegmentAlert,
     required this.nowUtc,
@@ -21,6 +23,9 @@ class SideEffectContext {
 
   /// Engine snapshot after the transition (when the op needs it).
   final TimerEngineState? after;
+
+  /// Lifecycle boundary when this context follows a command; hub uses this for Alerts.
+  final SegmentBoundaryDescription? segmentBoundary;
 
   /// App is interactive — prefer in-app tone over OS tray for segment end.
   final bool isForeground;

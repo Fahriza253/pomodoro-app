@@ -193,6 +193,41 @@ void main() {
       },
     );
 
+    test(
+      'restoreFromPersisted catches up overdue focus and auto-started break',
+      () {
+        final config = pomodoroConfig(
+          focusSec: 30,
+          shortBreakSec: 10,
+          sessionsBeforeLongBreak: 2,
+          autoStartBreak: true,
+          totalCycles: 2,
+        );
+        final plan = SessionPlan(
+          config: config,
+          segments: planner.buildCycleSegments(config),
+          cyclesTarget: 2,
+        );
+        engine.startPomodoro(plan, clock.nowUtc());
+
+        final persisted = engine.currentState;
+        clock.advanceSeconds(50);
+        engine.dispose();
+        engine = TimerEngine(planner: planner);
+        engine.restoreFromPersisted(persisted, clock.nowUtc());
+
+        expect(engine.currentState.pomodoroFocusCount, 1);
+        expect(
+          engine.currentState.currentSegmentIndex,
+          greaterThan(persisted.currentSegmentIndex),
+        );
+        expect(
+          engine.currentState.phase,
+          isIn([EnginePhase.segmentComplete, EnginePhase.running]),
+        );
+      },
+    );
+
     test('skipBreak after restoreFromPersisted at focus segmentComplete', () {
       final config = pomodoroConfig(
         sessionsBeforeLongBreak: 2,

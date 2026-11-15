@@ -1,5 +1,7 @@
+import 'package:pomodoro_app/application/timer/lifecycle_result.dart';
 import 'package:pomodoro_app/application/timer/persist_reason.dart';
 import 'package:pomodoro_app/application/timer/session_lifecycle.dart';
+import 'package:pomodoro_app/application/timer/session_terminal_follow_up.dart';
 import 'package:pomodoro_app/data/database/app_database.dart';
 import 'package:pomodoro_app/data/repositories/active_timer_state_repository.dart';
 import 'package:pomodoro_app/data/repositories/session_repository.dart';
@@ -187,6 +189,8 @@ void main() {
       final resume = await fresh.resumeFromPersisted(pending: persisted);
       expect(resume.after.phase, EnginePhase.paused);
       expect(fresh.currentState.phase, EnginePhase.paused);
+      expect(resume.before.phase, EnginePhase.paused);
+      expect(resume.segmentBoundary.before.phase, EnginePhase.paused);
     });
 
     test(
@@ -217,6 +221,30 @@ void main() {
 
         final resume = await fresh.resumeFromPersisted(pending: persisted);
         expect(resume.after.remainingSecAt(clock.nowUtc()), remainingAtPause);
+      },
+    );
+
+    test(
+      'resumeFromPersisted catches up overdue Pomodoro segment',
+      () async {
+        await shortFocusTag(focusSec: 30);
+        await lifecycle.startPomodoro(tagId);
+        final persisted = await activeState.get();
+
+        lifecycle.dispose();
+        clock.advanceSeconds(35);
+
+        final fresh = SessionLifecycle(
+          sessionRepository: sessions,
+          tagRepository: tags,
+          activeTimerStateRepository: activeState,
+          clock: clock,
+        );
+        addTearDown(fresh.dispose);
+
+        final resume = await fresh.resumeFromPersisted(pending: persisted);
+        expect(resume.after.phase, EnginePhase.segmentComplete);
+        expect(resume.after.currentSegment?.type, SegmentType.focus);
       },
     );
 
@@ -285,6 +313,51 @@ void main() {
       expect(after!.lastPersistedAtUtcMs, lastPersisted);
       expect(tick.after.phase, EnginePhase.running);
     });
+
+    test(
+      'entering Pomodoro sessionComplete returns no terminal follow-up',
+      () async {
+        await shortFocusTag(sessionsBeforeLong: 1, totalCycles: 2);
+        await lifecycle.startPomodoro(tagId);
+        LifecycleResult? enterComplete;
+        for (var i = 0; i < 40; i++) {
+          final phase = lifecycle.currentState.phase;
+          if (phase == EnginePhase.sessionComplete) {
+            break;
+          }
+          if (phase == EnginePhase.running) {
+            final planned = lifecycle.currentState.currentSegment!.plannedSec;
+            clock.advanceSeconds(planned);
+            enterComplete = await lifecycle.tick();
+            if (lifecycle.currentState.phase == EnginePhase.sessionComplete) {
+              break;
+            }
+            continue;
+          }
+          if (phase == EnginePhase.segmentComplete) {
+            await lifecycle.advanceSegment();
+            continue;
+          }
+          fail('unexpected phase: $phase');
+        }
+        expect(enterComplete, isNotNull);
+        expect(enterComplete!.terminalFollowUp, SessionTerminalFollowUp.none);
+      },
+    );
+
+    test(
+      'completeFlexible requests persistCompletedKeepUi follow-up',
+      () async {
+        await lifecycle.startFlexible(tagId);
+        clock.advance(const Duration(minutes: 3));
+        final result = await lifecycle.completeFlexible();
+        expect(result.after.phase, EnginePhase.sessionComplete);
+        expect(
+          result.terminalFollowUp,
+          SessionTerminalFollowUp.persistCompletedKeepUi,
+        );
+      },
+    );
 
     test(
       'Pomodoro sessionComplete stays soft: session still active, not completed',
@@ -395,6 +468,32 @@ void main() {
           (await sessions.getById(sessionId))!.status,
           SessionStatus.completed,
         );
+      },
+    );
+
+    test(
+      'lifecycle commands expose one segment boundary on the result',
+      () async {
+        await shortFocusTag();
+        await lifecycle.startPomodoro(tagId);
+        clock.advanceSeconds(30);
+        final tick = await lifecycle.tick();
+
+        expect(tick.segmentBoundary.significant, isTrue);
+        expect(tick.segmentBoundary.segmentEndAlert, isNotNull);
+        expect(
+          tick.segmentBoundary.completionSemantics?.counterSyncSegmentIndex,
+          0,
+        );
+
+        final advance = await lifecycle.advanceSegment();
+        expect(advance.segmentBoundary.significant, isTrue);
+        expect(advance.segmentBoundary.segmentEndAlert, isNull);
+
+        clock.advanceSeconds(10);
+        final skip = await lifecycle.skipBreak();
+        expect(skip.segmentBoundary.significant, isTrue);
+        expect(skip.segmentBoundary.segmentEndAlert, isNotNull);
       },
     );
 

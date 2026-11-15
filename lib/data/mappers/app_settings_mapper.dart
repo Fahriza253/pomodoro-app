@@ -24,6 +24,7 @@ class AppSettingsMapper {
       weekStartDay: row.weekStartDay,
       timeFormat: TimeFormat.fromDb(row.timeFormat),
       trackFailedSessions: row.trackFailedSessions == 1,
+      pomodoroPreStartCountdown: row.pomodoroPreStartCountdown == 1,
       updatedAtUtcMs: row.updatedAt,
     );
   }
@@ -67,6 +68,11 @@ class AppSettingsMapper {
       timeFormat: Value((patch.timeFormat ?? current.timeFormat).toDb()),
       trackFailedSessions: Value(
         (patch.trackFailedSessions ?? current.trackFailedSessions) ? 1 : 0,
+      ),
+      pomodoroPreStartCountdown: Value(
+        (patch.pomodoroPreStartCountdown ?? current.pomodoroPreStartCountdown)
+            ? 1
+            : 0,
       ),
       updatedAt: Value(updatedAtUtcMs),
     );

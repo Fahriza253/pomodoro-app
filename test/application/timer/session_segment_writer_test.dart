@@ -1,4 +1,6 @@
+import 'package:pomodoro_app/application/timer/segment_boundary_description.dart';
 import 'package:pomodoro_app/application/timer/session_segment_writer.dart';
+import 'package:pomodoro_app/domain/timer/segment_completion_semantics.dart';
 import 'package:pomodoro_app/data/database/app_database.dart';
 import 'package:pomodoro_app/data/repositories/session_repository.dart';
 import 'package:pomodoro_app/domain/common/enums.dart';
@@ -71,6 +73,68 @@ void main() {
       return (sessionId: sessionId, segmentIds: segmentIds);
     }
 
+    test('applyCompletionSemantics maps skips and completes without engine', () async {
+      final plans = [
+        const SegmentPlan(type: SegmentType.focus, plannedSec: 30, orderIndex: 0),
+        const SegmentPlan(
+          type: SegmentType.shortRest,
+          plannedSec: 10,
+          orderIndex: 1,
+        ),
+        const SegmentPlan(type: SegmentType.focus, plannedSec: 30, orderIndex: 2),
+      ];
+      final seeded = await seedPomodoro(plans: plans);
+      final sessionStarted = clock.nowUtc();
+      final after = TimerEngineState(
+        phase: EnginePhase.running,
+        mode: TimerMode.pomodoro,
+        config: ConfigSnapshot.pomodoroDefaults(),
+        segments: plans,
+        currentSegmentIndex: 2,
+        pomodoroFocusCount: 1,
+        pomodoroCyclesCompleted: 0,
+        pomodoroCyclesTarget: 2,
+        segmentStartedAtUtc: sessionStarted,
+        sessionStartedAtUtc: sessionStarted,
+      );
+
+      await writer.applyCompletionSemantics(
+        sessionId: seeded.sessionId,
+        segmentIds: seeded.segmentIds,
+        semantics: const SegmentCompletionSemantics(
+          completedSegments: [
+            CompletedSegmentSemantics(
+              segmentIndex: 0,
+              actualSec: 30,
+              segmentPausedSec: 0,
+            ),
+          ],
+          skippedRests: [SkippedRestSemantics(segmentIndex: 1)],
+          startedSegmentIndex: 2,
+          pomodoroFocusCount: 1,
+          pomodoroCyclesCompleted: 0,
+          sessionReachedTerminal: false,
+        ),
+        after: after,
+        totalActiveSec: 30,
+        totalPausedSec: 0,
+      );
+
+      final segs = await sessions.getSegmentsBySessionId(seeded.sessionId);
+      expect(
+        segs.firstWhere((s) => s.id == seeded.segmentIds[0]).segmentStatus,
+        SegmentStatus.completed,
+      );
+      expect(
+        segs.firstWhere((s) => s.id == seeded.segmentIds[1]).segmentStatus,
+        SegmentStatus.skipped,
+      );
+      expect(
+        segs.firstWhere((s) => s.id == seeded.segmentIds[2]).segmentStatus,
+        SegmentStatus.active,
+      );
+    });
+
     test('skip pending rests marks jumped rests skipped with actualSec 0', () async {
       final plans = [
         const SegmentPlan(type: SegmentType.focus, plannedSec: 30, orderIndex: 0),
@@ -105,8 +169,11 @@ void main() {
       await writer.syncOnTransition(
         sessionId: seeded.sessionId,
         segmentIds: seeded.segmentIds,
-        before: before,
-        after: after,
+        boundary: describeSegmentBoundary(
+          before: before,
+          after: after,
+          nowUtc: clock.nowUtc(),
+        ),
         totalActiveSec: 30,
         totalPausedSec: 0,
       );
@@ -162,8 +229,11 @@ void main() {
         await writer.syncOnTransition(
           sessionId: seeded.sessionId,
           segmentIds: seeded.segmentIds,
+          boundary: describeSegmentBoundary(
           before: before,
           after: after,
+          nowUtc: clock.nowUtc(),
+        ),
           totalActiveSec: 50,
           totalPausedSec: 0,
         );
@@ -223,8 +293,11 @@ void main() {
         await writer.syncOnTransition(
           sessionId: sessionId,
           segmentIds: [segmentId],
+          boundary: describeSegmentBoundary(
           before: before,
           after: after,
+          nowUtc: clock.nowUtc(),
+        ),
           totalActiveSec: 120,
           totalPausedSec: 0,
         );

@@ -6,7 +6,10 @@ import 'package:pomodoro_app/presentation/settings/settings_providers.dart';
 import 'package:pomodoro_app/presentation/tag/tag_providers.dart';
 
 /// Default AppSettings matching database seeder for widget test overrides.
-AppSettings testAppSettings({int updatedAtUtcMs = 1}) {
+AppSettings testAppSettings({
+  int updatedAtUtcMs = 1,
+  bool pomodoroPreStartCountdown = false,
+}) {
   return AppSettings(
     id: 'default',
     alertToneFocusSuccess: AlertToneCatalog.defaultFocusSuccess,
@@ -24,9 +27,16 @@ AppSettings testAppSettings({int updatedAtUtcMs = 1}) {
     weekStartDay: 1,
     timeFormat: TimeFormat.h24,
     trackFailedSessions: false,
+    pomodoroPreStartCountdown: pomodoroPreStartCountdown,
     updatedAtUtcMs: updatedAtUtcMs,
   );
 }
+
+/// Enables Pomodoro 3-2-1 pre-start in widget tests.
+final testAppSettingsPreStartCountdownOverride =
+    appSettingsStreamProvider.overrideWith(
+  (ref) => Stream.value(testAppSettings(pomodoroPreStartCountdown: true)),
+);
 
 /// Avoids Drift watch timers pending in widget tests when [PomodoroApp] loads theme.
 final testAppSettingsStreamOverride = appSettingsStreamProvider.overrideWith(

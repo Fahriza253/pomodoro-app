@@ -1,7 +1,9 @@
+import 'package:pomodoro_app/application/timer/segment_boundary_description.dart';
 import 'package:pomodoro_app/data/repositories/session_repository.dart';
 import 'package:pomodoro_app/domain/common/enums.dart';
 import 'package:pomodoro_app/domain/session/session_inputs.dart';
 import 'package:pomodoro_app/domain/timer/models/timer_engine_state.dart';
+import 'package:pomodoro_app/domain/timer/segment_completion_semantics.dart';
 import 'package:pomodoro_app/platform/clock/clock_adapter.dart';
 
 /// Durable Segment row writes for mid-Session transitions, terminal finalize,
@@ -21,87 +23,73 @@ class SessionSegmentWriter {
   Future<void> syncOnTransition({
     required String sessionId,
     required List<String> segmentIds,
-    required TimerEngineState before,
+    required SegmentBoundaryDescription boundary,
+    required int totalActiveSec,
+    required int totalPausedSec,
+  }) async {
+    if (!boundary.significant) {
+      return;
+    }
+    final semantics = boundary.completionSemantics;
+    if (semantics == null || !semantics.hasRowWrites) {
+      return;
+    }
+    await _applyCompletionSemantics(
+      sessionId: sessionId,
+      segmentIds: segmentIds,
+      semantics: semantics,
+      after: boundary.after,
+      totalActiveSec: totalActiveSec,
+      totalPausedSec: totalPausedSec,
+    );
+  }
+
+  /// Maps pre-derived [semantics] to Segment rows (tests and direct handoff).
+  Future<void> applyCompletionSemantics({
+    required String sessionId,
+    required List<String> segmentIds,
+    required SegmentCompletionSemantics semantics,
+    required TimerEngineState after,
+    required int totalActiveSec,
+    required int totalPausedSec,
+  }) async {
+    if (!semantics.hasRowWrites) {
+      return;
+    }
+    await _applyCompletionSemantics(
+      sessionId: sessionId,
+      segmentIds: segmentIds,
+      semantics: semantics,
+      after: after,
+      totalActiveSec: totalActiveSec,
+      totalPausedSec: totalPausedSec,
+    );
+  }
+
+  Future<void> _applyCompletionSemantics({
+    required String sessionId,
+    required List<String> segmentIds,
+    required SegmentCompletionSemantics semantics,
     required TimerEngineState after,
     required int totalActiveSec,
     required int totalPausedSec,
   }) async {
     final nowMs = _clock.nowUtc().millisecondsSinceEpoch;
-    final from = before.currentSegmentIndex;
-    final to = after.currentSegmentIndex;
 
-    if (from >= 0 && from < segmentIds.length && from != to) {
-      final completedId = segmentIds[from];
-      final segment = before.currentSegment;
-      final actualSec = segment?.type == SegmentType.flexible
-          ? before.elapsedActiveSecAt(_clock.nowUtc())
-          : segment?.plannedSec ?? 0;
-      await _sessionRepository.updateSegmentProgress(
-        UpdateSegmentInput(
-          sessionId: sessionId,
-          segmentId: completedId,
-          segmentStatus: SegmentStatus.completed,
-          actualSec: actualSec,
-          segmentPausedSec: before.segmentPausedSec,
-          endedAtUtcMs: nowMs,
-          pomodoroFocusCount: after.pomodoroFocusCount,
-          pomodoroCyclesCompleted: after.pomodoroCyclesCompleted,
-          totalActiveSec: totalActiveSec,
-          totalPausedSec: totalPausedSec,
-          updatedAtUtcMs: nowMs,
-        ),
-      );
-
-      // Pending rest skipped from post-focus prompt: mark jumped rests
-      // as skipped / actualSec=0 (BR-TIMER-004). Includes sessionComplete
-      // landing on the skipped long_rest itself.
-      final skipEndExclusive =
-          after.phase == EnginePhase.sessionComplete &&
-              after.currentSegment?.isRest == true
-          ? to + 1
-          : to;
-      for (var i = from + 1; i < skipEndExclusive; i++) {
-        if (i < 0 || i >= segmentIds.length || i >= before.segments.length) {
-          break;
-        }
-        if (!before.segments[i].isRest) {
-          continue;
-        }
-        await _sessionRepository.updateSegmentProgress(
-          UpdateSegmentInput(
-            sessionId: sessionId,
-            segmentId: segmentIds[i],
-            segmentStatus: SegmentStatus.skipped,
-            actualSec: 0,
-            endedAtUtcMs: nowMs,
-            pomodoroFocusCount: after.pomodoroFocusCount,
-            pomodoroCyclesCompleted: after.pomodoroCyclesCompleted,
-            totalActiveSec: totalActiveSec,
-            totalPausedSec: totalPausedSec,
-            updatedAtUtcMs: nowMs,
-          ),
-        );
+    for (final completed in semantics.completedSegments) {
+      if (!_indexInRange(completed.segmentIndex, segmentIds)) {
+        continue;
       }
-    } else if (after.phase == EnginePhase.sessionComplete &&
-        before.phase != EnginePhase.sessionComplete &&
-        from == to &&
-        from >= 0 &&
-        from < segmentIds.length) {
-      // Last segment completed without advancing index (typical final rest).
-      final segment = before.currentSegment;
-      final actualSec = segment?.type == SegmentType.flexible
-          ? before.elapsedActiveSecAt(_clock.nowUtc())
-          : segment?.plannedSec ?? 0;
       await _sessionRepository.updateSegmentProgress(
         UpdateSegmentInput(
           sessionId: sessionId,
-          segmentId: segmentIds[from],
+          segmentId: segmentIds[completed.segmentIndex],
           segmentStatus: SegmentStatus.completed,
-          actualSec: actualSec,
-          segmentPausedSec: before.segmentPausedSec,
+          actualSec: completed.actualSec,
+          segmentPausedSec: completed.segmentPausedSec,
           endedAtUtcMs: nowMs,
-          pomodoroFocusCount: after.pomodoroFocusCount,
-          pomodoroCyclesCompleted: after.pomodoroCyclesCompleted,
+          pomodoroFocusCount: semantics.pomodoroFocusCount,
+          pomodoroCyclesCompleted: semantics.pomodoroCyclesCompleted,
           totalActiveSec: totalActiveSec,
           totalPausedSec: totalPausedSec,
           updatedAtUtcMs: nowMs,
@@ -109,26 +97,47 @@ class SessionSegmentWriter {
       );
     }
 
-    if (after.phase == EnginePhase.running &&
-        to >= 0 &&
-        to < segmentIds.length &&
-        from != to) {
+    for (final skipped in semantics.skippedRests) {
+      if (!_indexInRange(skipped.segmentIndex, segmentIds)) {
+        continue;
+      }
+      await _sessionRepository.updateSegmentProgress(
+        UpdateSegmentInput(
+          sessionId: sessionId,
+          segmentId: segmentIds[skipped.segmentIndex],
+          segmentStatus: SegmentStatus.skipped,
+          actualSec: 0,
+          endedAtUtcMs: nowMs,
+          pomodoroFocusCount: semantics.pomodoroFocusCount,
+          pomodoroCyclesCompleted: semantics.pomodoroCyclesCompleted,
+          totalActiveSec: totalActiveSec,
+          totalPausedSec: totalPausedSec,
+          updatedAtUtcMs: nowMs,
+        ),
+      );
+    }
+
+    final started = semantics.startedSegmentIndex;
+    if (started != null && _indexInRange(started, segmentIds)) {
       await _markSegmentStarted(
         sessionId: sessionId,
-        segmentId: segmentIds[to],
+        segmentId: segmentIds[started],
         state: after,
         totalActiveSec: totalActiveSec,
         totalPausedSec: totalPausedSec,
         nowMs: nowMs,
+        pomodoroFocusCount: semantics.pomodoroFocusCount,
+        pomodoroCyclesCompleted: semantics.pomodoroCyclesCompleted,
       );
     }
 
-    if (after.phase == EnginePhase.sessionComplete ||
-        after.phase == EnginePhase.segmentComplete) {
+    final counterSync = semantics.counterSyncSegmentIndex;
+    if (counterSync != null && _indexInRange(counterSync, segmentIds)) {
       await _updateSessionCounters(
         sessionId: sessionId,
-        segmentIds: segmentIds,
-        state: after,
+        segmentId: segmentIds[counterSync],
+        pomodoroFocusCount: semantics.pomodoroFocusCount,
+        pomodoroCyclesCompleted: semantics.pomodoroCyclesCompleted,
         totalActiveSec: totalActiveSec,
         totalPausedSec: totalPausedSec,
         nowMs: nowMs,
@@ -225,8 +234,13 @@ class SessionSegmentWriter {
       totalActiveSec: totalActiveSec,
       totalPausedSec: totalPausedSec,
       nowMs: nowMs,
+      pomodoroFocusCount: state.pomodoroFocusCount,
+      pomodoroCyclesCompleted: state.pomodoroCyclesCompleted,
     );
   }
+
+  bool _indexInRange(int index, List<String> segmentIds) =>
+      index >= 0 && index < segmentIds.length;
 
   String? _segmentIdAt(List<String> segmentIds, int index) {
     if (index < 0 || index >= segmentIds.length) {
@@ -242,6 +256,8 @@ class SessionSegmentWriter {
     required int totalActiveSec,
     required int totalPausedSec,
     required int nowMs,
+    required int pomodoroFocusCount,
+    required int pomodoroCyclesCompleted,
   }) async {
     await _sessionRepository.updateSegmentProgress(
       UpdateSegmentInput(
@@ -249,8 +265,8 @@ class SessionSegmentWriter {
         segmentId: segmentId,
         segmentStatus: SegmentStatus.active,
         startedAtUtcMs: nowMs,
-        pomodoroFocusCount: state.pomodoroFocusCount,
-        pomodoroCyclesCompleted: state.pomodoroCyclesCompleted,
+        pomodoroFocusCount: pomodoroFocusCount,
+        pomodoroCyclesCompleted: pomodoroCyclesCompleted,
         totalActiveSec: totalActiveSec,
         totalPausedSec: totalPausedSec,
         updatedAtUtcMs: nowMs,
@@ -260,22 +276,19 @@ class SessionSegmentWriter {
 
   Future<void> _updateSessionCounters({
     required String sessionId,
-    required List<String> segmentIds,
-    required TimerEngineState state,
+    required String segmentId,
+    required int pomodoroFocusCount,
+    required int pomodoroCyclesCompleted,
     required int totalActiveSec,
     required int totalPausedSec,
     required int nowMs,
   }) async {
-    if (state.currentSegmentIndex < 0 ||
-        state.currentSegmentIndex >= segmentIds.length) {
-      return;
-    }
     await _sessionRepository.updateSegmentProgress(
       UpdateSegmentInput(
         sessionId: sessionId,
-        segmentId: segmentIds[state.currentSegmentIndex],
-        pomodoroFocusCount: state.pomodoroFocusCount,
-        pomodoroCyclesCompleted: state.pomodoroCyclesCompleted,
+        segmentId: segmentId,
+        pomodoroFocusCount: pomodoroFocusCount,
+        pomodoroCyclesCompleted: pomodoroCyclesCompleted,
         totalActiveSec: totalActiveSec,
         totalPausedSec: totalPausedSec,
         updatedAtUtcMs: nowMs,

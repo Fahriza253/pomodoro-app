@@ -132,6 +132,8 @@ class AppSettingsTable extends Table {
   TextColumn get timeFormat => text().withDefault(const Constant('24h'))();
   IntColumn get trackFailedSessions =>
       integer().withDefault(const Constant(0))();
+  IntColumn get pomodoroPreStartCountdown =>
+      integer().withDefault(const Constant(0))();
   IntColumn get updatedAt => integer()();
 
   @override

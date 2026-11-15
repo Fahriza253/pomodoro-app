@@ -22,6 +22,7 @@ void main() {
     weekStartDay: 1,
     timeFormat: TimeFormat.h24,
     trackFailedSessions: false,
+    pomodoroPreStartCountdown: false,
     updatedAtUtcMs: 0,
   );
 

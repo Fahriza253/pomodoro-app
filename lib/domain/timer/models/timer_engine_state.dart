@@ -97,6 +97,18 @@ class TimerEngineState {
     return total < 0 ? 0 : total;
   }
 
+  /// Wall-clock instant when the current segment's planned active time ends.
+  DateTime? segmentPlannedEndAtUtc() {
+    final segment = currentSegment;
+    final started = segmentStartedAtUtc;
+    if (segment == null || started == null) {
+      return null;
+    }
+    return started.add(
+      Duration(seconds: segment.plannedSec + segmentPausedSec),
+    );
+  }
+
   /// Active seconds elapsed on the current segment (Pomodoro or Flexible).
   ///
   /// Used when stopping / failing mid-segment so Timeline keeps real `actualSec`.

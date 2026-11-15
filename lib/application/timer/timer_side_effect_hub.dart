@@ -2,13 +2,12 @@ import 'package:pomodoro_app/application/timer/alert_modality.dart';
 import 'package:pomodoro_app/application/timer/immediate_event_delivery.dart';
 import 'package:pomodoro_app/application/timer/notification_strings.dart';
 import 'package:pomodoro_app/application/timer/segment_end_copy.dart';
-import 'package:pomodoro_app/application/timer/segment_end_cycle_progress.dart';
+import 'package:pomodoro_app/application/timer/segment_end_semantics.dart';
 import 'package:pomodoro_app/application/timer/segment_end_delivery.dart';
 import 'package:pomodoro_app/application/timer/side_effect_context.dart';
 import 'package:pomodoro_app/data/repositories/settings_repository.dart';
 import 'package:pomodoro_app/domain/common/enums.dart';
 import 'package:pomodoro_app/domain/settings/app_settings.dart';
-import 'package:pomodoro_app/domain/timer/models/timer_engine_state.dart';
 import 'package:pomodoro_app/platform/aod/aod_adapter.dart';
 import 'package:pomodoro_app/platform/audio/alert_sound_adapter.dart';
 import 'package:pomodoro_app/platform/flash/flash_adapter.dart';
@@ -181,37 +180,21 @@ class TimerSideEffectHub {
   }
 
   Future<bool> _maybePlaySegmentAlert(SideEffectContext context) async {
-    final before = context.before;
-    final after = context.after;
     final sessionId = context.sessionId;
-    if (before == null || after == null || sessionId == null) {
+    if (sessionId == null) {
       return false;
     }
-
-    final completedPrompt =
-        after.phase == EnginePhase.segmentComplete ||
-        after.phase == EnginePhase.sessionComplete;
-    final autoAdvanced =
-        before.phase == EnginePhase.running &&
-        after.phase == EnginePhase.running &&
-        before.currentSegmentIndex != after.currentSegmentIndex;
-    if ((!completedPrompt && !autoAdvanced) ||
-        before.phase != EnginePhase.running) {
+    final boundary = context.segmentBoundary;
+    final alert = boundary?.segmentEndAlert;
+    if (alert == null) {
       return false;
     }
-    final segment = before.currentSegment;
-    if (segment == null) {
-      return false;
-    }
+    final after = boundary!.after;
 
     final settings = await _settingsRepository.get();
     final isFocusLike =
-        segment.type == SegmentType.focus ||
-        segment.type == SegmentType.flexible;
-    if (!isFocusLike && !segment.isRest) {
-      return false;
-    }
-
+        alert.finishedType == SegmentType.focus ||
+        alert.finishedType == SegmentType.flexible;
     final soundToneId = isFocusLike
         ? settings.alertToneFocusSuccess
         : settings.alertToneBreakOver;
@@ -249,10 +232,17 @@ class TimerSideEffectHub {
     }
 
     final copy = NotificationStrings.forLanguage(settings.language);
-    final endCopy = _segmentEndCopyForTransition(
-      before: before,
-      after: after,
+    final semantics = boundary.segmentEndSemantics;
+    if (semantics == null) {
+      return false;
+    }
+    final endCopy = SegmentEndCopy.build(
       strings: copy,
+      finished: semantics.finishedType,
+      next: semantics.nextType,
+      completedCount: semantics.completedCount,
+      totalCount: semantics.totalCount,
+      sessionComplete: semantics.sessionComplete,
     );
     final plan = _planFor(settings, foreground: false);
     await _notificationAdapter.showAlert(
@@ -412,31 +402,20 @@ class TimerSideEffectHub {
         ? settings.alertToneFocusSuccess
         : settings.alertToneBreakOver;
     final copy = NotificationStrings.forLanguage(settings.language);
-    final index = state.currentSegmentIndex;
-    final nextIndex = index + 1;
-    final nextType = nextIndex < state.segments.length
-        ? state.segments[nextIndex].type
-        : null;
-    final sessionComplete = nextType == null;
-    final cyclesAfter = cyclesCompletedAfterPredictedFinish(
-      cyclesCompletedNow: state.pomodoroCyclesCompleted,
-      current: segment.type,
-    );
-    final progress = segmentEndCycleProgress(
-      cyclesCompletedAfterSegment: cyclesAfter,
-      cyclesTarget: state.pomodoroCyclesTarget,
-      finished: segment.type,
-      sessionComplete: sessionComplete,
-    );
+    final semantics = segmentEndSemanticsForRunningSchedule(state);
+    if (semantics == null) {
+      return;
+    }
     final endCopy = SegmentEndCopy.build(
       strings: copy,
-      finished: segment.type,
-      next: nextType,
-      completedCount: progress.n,
-      totalCount: progress.total,
-      sessionComplete: sessionComplete,
+      finished: semantics.finishedType,
+      next: semantics.nextType,
+      completedCount: semantics.completedCount,
+      totalCount: semantics.totalCount,
+      sessionComplete: semantics.sessionComplete,
     );
 
+    final index = state.currentSegmentIndex;
     final scheduledId = _scheduledSegmentEndNotificationId(sessionId, index);
     final fireAt = now.add(Duration(seconds: remaining));
     final enqueued = await _notificationAdapter.scheduleSegmentEnd(
@@ -550,34 +529,6 @@ class TimerSideEffectHub {
     );
     await _notificationAdapter.cancel(
       _immediateSegmentEndNotificationId(sessionId),
-    );
-  }
-
-  SegmentEndCopy _segmentEndCopyForTransition({
-    required TimerEngineState before,
-    required TimerEngineState after,
-    required NotificationStrings strings,
-  }) {
-    final finished = before.currentSegment!;
-    final index = before.currentSegmentIndex;
-    final nextIndex = index + 1;
-    final nextType = nextIndex < before.segments.length
-        ? before.segments[nextIndex].type
-        : null;
-    final sessionComplete = after.phase == EnginePhase.sessionComplete;
-    final progress = segmentEndCycleProgress(
-      cyclesCompletedAfterSegment: after.pomodoroCyclesCompleted,
-      cyclesTarget: after.pomodoroCyclesTarget,
-      finished: finished.type,
-      sessionComplete: sessionComplete,
-    );
-    return SegmentEndCopy.build(
-      strings: strings,
-      finished: finished.type,
-      next: nextType,
-      completedCount: progress.n,
-      totalCount: progress.total,
-      sessionComplete: sessionComplete,
     );
   }
 
